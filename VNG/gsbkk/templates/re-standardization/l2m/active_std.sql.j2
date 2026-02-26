@@ -1,0 +1,17 @@
+-- Combine all activity sources to identify active users
+WITH all_activities AS (
+    SELECT user_id, server_id, level FROM login
+    UNION ALL SELECT user_id, server_id, level FROM logout
+    UNION ALL SELECT user_id, server_id, 0 AS level FROM recharge
+    UNION ALL SELECT user_id, server_id, role_level AS level FROM item_gain
+    UNION ALL SELECT user_id, server_id, role_level AS level FROM item_spend
+    UNION ALL SELECT user_id, server_id, 0 AS level FROM money_gain
+    UNION ALL SELECT user_id, server_id, 0 AS level FROM money_spend
+)
+SELECT 
+    user_id, 
+    server_id, 
+    CAST(REGEXP_REPLACE('{{logDate}}', '-', '') AS INT) AS active_date, 
+    MAX(level) AS level 
+FROM all_activities 
+GROUP BY user_id, server_id

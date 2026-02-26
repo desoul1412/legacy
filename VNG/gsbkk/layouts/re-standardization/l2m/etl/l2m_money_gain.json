@@ -1,0 +1,19 @@
+{
+  "description": "L2M Money Gain ETL: Extract in-game currency gain events from Trino",
+  "comment": "Extracts data on in-game currency/money earned by players",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "sqlTemplate": "templates/re-standardization/l2m/money_gain.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/money_gain/{logDate}",
+      "format": "parquet"
+    }
+  ]
+}

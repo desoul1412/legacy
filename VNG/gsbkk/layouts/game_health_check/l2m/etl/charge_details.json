@@ -1,0 +1,5 @@
+{
+  "description": "L2M Game Health Check - Extract transaction-level charge details from Trino",
+  "inputSources": [{"name": "charge_data", "type": "jdbc", "connection": "GDS_TRINO", "sqlTemplate": "templates/game_health_check/l2m/charge_details.sql.j2"}],
+  "outputs": [{"type": "file", "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/l2m/charge_details/{logDate}", "format": "parquet"}]
+}

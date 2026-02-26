@@ -1,0 +1,12 @@
+-- L2M Recharge - Transform from ETL schema to target table schema
+-- Rename columns: user_id -> game_account_id, server_id -> game_server_id
+-- Convert ds from INT (yyyyMMdd) to DATE
+-- Exclude daily_rev_usd (used only in cumulative_revenue)
+
+SELECT 
+    user_id AS game_account_id,
+    server_id AS game_server_id,
+    pmc,
+    TO_DATE(CAST(ds AS STRING), 'yyyyMMdd') AS ds,
+    amount
+FROM source_data

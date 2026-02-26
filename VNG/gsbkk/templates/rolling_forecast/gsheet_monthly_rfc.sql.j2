@@ -1,0 +1,71 @@
+{# Monthly Rolling Forecast SQL Template
+   
+   Maps Google Sheet columns to PostgreSQL rfc_monthly table schema
+   Column names with spaces must be escaped with backticks (`)
+   
+   Google Sheet columns (Monthly Overall):
+   - Game, Product Group, Market, Team, Month, Genre
+   - Gross Rev - Annual KPI, Profit - Annual KPI, MAU - Annual KPI
+   - Gross Rev - RFC, Profit - RFC, MAU - RFC
+   - Gross Rev - Actual, Profit - Actual, MAU - Actual
+   - MPU - RFC, MPU - Actual, NRU - RFC, NRU - Actual
+   - Install - RFC, Install - Actual, Paid Install - RFC, Paid Install - Actual
+   - Channeling - RFC, Licencse & Royalty - RFC, Server - RFC
+   - Internal Platform - RFC, Other Cost - RFC
+   - Channeling - Actual, Licencse & Royalty - Actual, Server - Actual
+   - Internal Platform - Actual, Other Cost - Actual
+   - MKT - RFC, MKT - Actual, MKT - KPI
+   
+   PostgreSQL columns (rfc_monthly table):
+   - All matching lowercase with underscores
+#}
+
+SELECT
+    `Game` as game,
+    `Product Group` as product_group,
+    `Market` as market,
+    `Team` as team,
+    `Month` as month,
+    `Genre` as genre,
+    CAST(`Gross Rev - Annual KPI` AS DOUBLE) as gross_rev_annual_kpi,
+    CAST(`Profit - Annual KPI` AS DOUBLE) as profit_annual_kpi,
+    CAST(`MAU - Annual KPI` AS DOUBLE) as mau_annual_kpi,
+    CAST(`Gross Rev - RFC` AS DOUBLE) as gross_rev_rfc,
+    CAST(`Profit - RFC` AS DOUBLE) as profit_rfc,
+    CAST(`MAU - RFC` AS DOUBLE) as mau_rfc,
+    CAST(`Gross Rev - Actual` AS DOUBLE) as gross_rev_actual,
+    CAST(`Profit - Actual` AS DOUBLE) as profit_actual,
+    CAST(`MAU - Actual` AS DOUBLE) as mau_actual,
+    CAST(`MPU - RFC` AS DOUBLE) as mpu_rfc,
+    CAST(`MPU - Actual` AS DOUBLE) as mpu_actual,
+    CAST(`NRU - RFC` AS DOUBLE) as nru_rfc,
+    CAST(`NRU - Actual` AS DOUBLE) as nru_actual,
+    CAST(`Install - RFC` AS DOUBLE) as install_rfc,
+    CAST(`Install - Actual` AS DOUBLE) as install_actual,
+    CAST(`Paid Install - RFC` AS DOUBLE) as paid_install_rfc,
+    CAST(`Paid Install - Actual` AS DOUBLE) as paid_install_actual,
+    CAST(`Channeling - RFC` AS DOUBLE) as channeling_rfc,
+    CAST(`Licensce & Royalty - RFC` AS DOUBLE) as licencse_royalty_rfc,
+    CAST(`Server - RFC` AS DOUBLE) as server_rfc,
+    CAST(`Internal Platform - RFC` AS DOUBLE) as internal_platform_rfc,
+    CAST(`Other Cost - RFC` AS DOUBLE) as other_cost_rfc,
+    CAST(`Channeling - Actual` AS DOUBLE) as channeling_actual,
+    CAST(`Licensce & Royalty - Actual` AS DOUBLE) as licencse_royalty_actual,
+    CAST(`Server - Actual` AS DOUBLE) as server_actual,
+    CAST(`Internal Platform - Actual` AS DOUBLE) as internal_platform_actual,
+    CAST(`Other Cost - Actual` AS DOUBLE) as other_cost_actual,
+    CAST(`MKT - RFC` AS DOUBLE) as mkt_rfc,
+    CAST(`MKT - Actual` AS DOUBLE) as mkt_actual,
+    CAST(`MKT - KPI` AS DOUBLE) as mkt_kpi
+FROM monthly_rfc
+WHERE `Game` IS NOT NULL AND `Month` IS NOT NULL
+
+{# 
+NOTES:
+1. Backticks (`) are required for column names with spaces
+2. Column names are case-sensitive in Google Sheets
+3. AS renames columns to match PostgreSQL naming (lowercase, underscores)
+4. Note: "Licencse" appears to be a typo in source schema but kept for consistency
+5. updated_at timestamp is automatically added by the add_updated_at flag
+6. deleteCondition ensures idempotent updates by removing duplicates before append
+#}

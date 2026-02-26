@@ -1,0 +1,59 @@
+standard_columns:
+  active:
+    user_id:
+      - userID
+      - userid
+      - qid
+      - account_id
+    login_date:
+      - loginDate
+      - logtime
+      - login_time
+      - ds
+      - logDate
+    device_id:
+      - deviceID
+
+  charge:
+    user_id:
+      - userID
+      - userid
+      - qid
+      - account_id
+    charge_date:
+      - charge_time
+      - chargeDate
+      - logtime
+      - pay_time
+      - log_date
+      - recharge_time
+    currency_code:
+      - currencyCode
+      - currency
+      - currencycountry
+      - money_type
+    rev:
+    - amountcountry
+    - money_value
+    - order_cash
+    rev_usd:
+      - money_value
+      - amount
+    rev_vnd:
+      - revInVND
+
+  user_profile:
+    user_id:
+      - userID
+    device_id:
+      - deviceID
+    install_id:
+      - installID
+    country:
+      - firstCountryCode
+    register_time:
+      - registerTime
+    first_login_time:
+      - firstLoginTime
+    total_revenue:
+      - totalRev

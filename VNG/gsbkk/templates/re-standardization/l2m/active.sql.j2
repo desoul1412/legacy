@@ -1,0 +1,10 @@
+-- L2M Active Users - Aggregate from STD
+-- Convert active_date from INT (yyyyMMdd) to DATE for PostgreSQL
+-- Aggregate by user_id to get max level
+
+SELECT 
+    user_id,
+    TO_DATE(CAST(active_date AS STRING), 'yyyyMMdd') AS active_date,
+    MAX(level) AS max_level
+FROM source_data
+GROUP BY user_id, TO_DATE(CAST(active_date AS STRING), 'yyyyMMdd')

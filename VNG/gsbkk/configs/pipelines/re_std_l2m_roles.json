@@ -1,0 +1,96 @@
+{
+  "project": "re_std",
+  "description": "Re-standardization for L2M game - Roles log",
+  "game_id": "l2m",
+  "source": "hadoop",
+  "sourceLog": "roles",
+  "outputPath": "{stdPath}/{gameId}/{sourceLog}/{logType}/{logDate}",
+  "hadoop_base_path": "hdfs://c0s/user/gsbkk-workspace-yc9t6",
+  "gds_hadoop": {
+    "base_path": "hdfs://gds/warehouse"
+  },
+  "source_log_config": {
+    "format": "json"
+  },
+  "schemas": [
+    {
+      "logType": "active_details",
+      "columns": [
+        {"colName": "gameID", "funcs": ["setGameId"]},
+        {"colName": "account_id", "rename": "userID"},
+        {"colName": "server_id", "rename": "serverID"},
+        {"colName": "role_id", "rename": "roleID"},
+        {
+          "colName": "os_platform",
+          "funcs": [
+            "expr(case when lower(os_platform) like '%android%' then 'android' when lower(os_platform) like '%ios%' then 'ios' when lower(os_platform) like '%pc%' then 'pc' else 'other' end)"
+          ],
+          "rename": "os"
+        },
+        {"colName": "os_version", "rename": "osVersion"},
+        {"colName": "country_code", "funcs": ["upper"], "rename": "countryCode"},
+        {
+          "colName": "login_channel",
+          "funcs": [
+            "lower",
+            "expr(case when lower(login_channel) like '%ios%' then 'appstore' when lower(login_channel) like '%android%' then 'playstore' when lower(login_channel) like '%pc%' then 'web' else 'other' end)"
+          ]
+        },
+        {"colName": "login_time", "funcs": ["cast(timestamp)"], "rename": "activeTime"},
+        {"colName": "activeType", "funcs": ["lit(login)"]},
+        {"colName": "role_name", "rename": "roleName"},
+        {"colName": "device_id", "rename": "dId"},
+        {"colName": "device_name", "rename": "DeviceName"},
+        {"colName": "client_ip", "rename": "IP"},
+        {"colName": "online_time", "rename": "onlineTime"},
+        {"colName": "reportDate", "funcs": ["setLogDate", "to_date"]},
+        {"colName": "logDate", "funcs": ["col(activeTime)", "to_date"]}
+      ],
+      "queries": [
+        "filterSDKUserId(userID)",
+        "filter(activeTime is not null and reportDate=logDate)",
+        "filter(cast(serverID as int) between 1 and 1999)"
+      ]
+    },
+    {
+      "logType": "logout",
+      "columns": [
+        {"colName": "gameID", "funcs": ["setGameId"]},
+        {"colName": "account_id", "rename": "userID"},
+        {"colName": "server_id", "rename": "serverID"},
+        {"colName": "role_id", "rename": "roleID"},
+        {
+          "colName": "os_platform",
+          "funcs": [
+            "expr(case when lower(os_platform) like '%android%' then 'android' when lower(os_platform) like '%ios%' then 'ios' when lower(os_platform) like '%pc%' then 'pc' else 'other' end)"
+          ],
+          "rename": "os"
+        },
+        {"colName": "os_version", "rename": "osVersion"},
+        {"colName": "country_code", "funcs": ["upper"], "rename": "countryCode"},
+        {
+          "colName": "login_channel",
+          "funcs": [
+            "lower",
+            "expr(case when lower(login_channel) like '%ios%' then 'appstore' when lower(login_channel) like '%android%' then 'playstore' when lower(login_channel) like '%pc%' then 'web' else 'other' end)"
+          ]
+        },
+        {"colName": "logout_time", "funcs": ["cast(timestamp)"], "rename": "activeTime"},
+        {"colName": "activeType", "funcs": ["lit(logout)"]},
+        {"colName": "role_name", "rename": "roleName"},
+        {"colName": "device_id", "rename": "dId"},
+        {"colName": "device_name"},
+        {"colName": "client_ip", "rename": "IP"},
+        {"colName": "online_time", "rename": "onlineTime"},
+        {"colName": "reportDate", "funcs": ["setLogDate", "to_date"]},
+        {"colName": "logDate", "funcs": ["col(activeTime)", "to_date"]}
+      ],
+      "queries": [
+        "filterSDKUserId(userID)",
+        "filter(activeTime is not null and reportDate=logDate)",
+        "filter(cast(serverID as int) between 1 and 1999)"
+      ]
+    }
+  ],
+  "sqlFile": "configs/sql/std/ingame/role_active_details.sql"
+}

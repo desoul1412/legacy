@@ -1,0 +1,20 @@
+{
+  "description": "L2M Farmers Snapshot: Detect and classify bot/farmer accounts (snapshot table)",
+  "comment": "Consolidates snapshot of detected bot/farmer accounts for analytics",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "sqlTemplate": "templates/re-standardization/l2m/farmers_snapshot.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.l2m_farmers_snapshot",
+      "mode": "overwrite"
+    }
+  ]
+}

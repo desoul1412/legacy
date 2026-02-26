@@ -1,0 +1,51 @@
+{
+  "description": "PWMSEA Game Health Check - Consolidate diagnostic daily metrics",
+  "inputSources": [
+    {
+      "name": "user_profile",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "table": "(SELECT game_id, user_id, country_code, total_rev, register_time, first_login_time, last_login_time, first_charge_time, last_charge_time FROM pwmsea.ops.user_profile) as user_profile"
+    },
+    {
+      "name": "currency_mapping",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/currency_mapping",
+      "format": "parquet"
+    },
+    {
+      "name": "charge_details",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/std/charge/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "active_details",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/std/active/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "campaign",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/campaign",
+      "format": "parquet"
+    },
+    {
+      "name": "retention_details",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/std/retention/{logDate(-1,0)}",
+      "format": "parquet"
+    }
+  ],
+  "sqlTemplate": "templates/game_health_check/diagnostic_daily.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.ghc_diagnostic_daily_pwmsea",
+      "mode": "append",
+      "deleteCondition": "report_date IN (DATE '{logDate}', DATE '{logDate}' - INTERVAL '1 day')"
+    }
+  ]
+}

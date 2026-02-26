@@ -1,0 +1,11 @@
+-- PWMSEA Rolling Forecast: Extract charge/revenue metrics from TSN Postgres diagnostic table
+-- Revenue already converted to USD by diagnostic pipeline
+-- Aggregates by report_date and country_code (SEA market)
+SELECT 
+    report_date,
+    country_code,
+    'USD' as currency_code,
+    SUM(revenue) as revenue
+FROM public.ghc_diagnostic_daily_pwmsea
+WHERE report_date = DATE '{{ logDate }}'
+GROUP BY report_date, country_code

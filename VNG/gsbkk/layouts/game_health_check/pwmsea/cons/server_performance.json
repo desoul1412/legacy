@@ -1,0 +1,11 @@
+{
+  "description": "PWMSEA Game Health Check - Server performance analysis",
+  "inputSources": [
+    {"name": "user_profile", "type": "jdbc", "connection": "GDS_POSTGRES", "table": "(SELECT game_id, user_id, country_code, total_rev, register_time, first_login_time, last_login_time, first_charge_time, last_charge_time FROM pwmsea.ops.user_profile) as user_profile", "cache": true},
+    {"name": "active_details", "type": "file", "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/active_details/{logDate}", "format": "parquet"},
+    {"name": "charge_details", "type": "file", "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/pwmsea/charge_details/{logDate}", "format": "parquet"}
+  ],
+  "sqlTemplate": "templates/game_health_check/server_performance.sql.j2",
+  "sparkConfig": {"spark.network.timeout": "600s", "spark.executor.heartbeatInterval": "60s", "spark.sql.adaptive.enabled": "true"},
+  "outputs": [{"type": "jdbc", "connection": "TSN_POSTGRES", "table": "public.ghc_server_performance_pwmsea", "mode": "append", "deleteCondition": "date = '{logDate}'", "options": {"batchsize": "10000", "numPartitions": "2", "isolationLevel": "READ_UNCOMMITTED"}}]
+}

@@ -1,0 +1,38 @@
+-- GNOTH Game Health Check: Campaign aggregated charge metrics
+-- Extracts from GDS Postgres mkt.daily_user_charge
+SELECT 
+    game_id,
+    report_date,
+    media_source,
+    campaign_id,
+    country_code,
+    currency_code,
+    SUM(grossrev) as revenue,
+    SUM(grossrev_npu) as grossrev_npu,
+    SUM(grossrev_nnpu) as grossrev_nnpu,
+    SUM(grossnru01) as grossnru01,
+    SUM(grossnru03) as grossnru03,
+    SUM(grossnru07) as grossnru07,
+    SUM(grossnru14) as grossnru14,
+    SUM(grossnru21) as grossnru21,
+    SUM(grossnru30) as grossnru30,
+    SUM(grossnru60) as grossnru60,
+    SUM(grossnru90) as grossnru90,
+    SUM(grossnru120) as grossnru120,
+    SUM(grossnru150) as grossnru150,
+    SUM(grossnru180) as grossnru180,
+    SUM(grossrpi01) as grossrpi01,
+    SUM(grossrpi03) as grossrpi03,
+    SUM(grossrpi07) as grossrpi07,
+    SUM(grossrpi14) as grossrpi14,
+    SUM(grossrpi21) as grossrpi21,
+    SUM(grossrpi30) as grossrpi30,
+    SUM(grossrpi60) as grossrpi60,
+    SUM(grossrpi90) as grossrpi90,
+    SUM(grossrpi120) as grossrpi120,
+    SUM(grossrpi150) as grossrpi150,
+    SUM(grossrpi180) as grossrpi180
+FROM mkt.daily_user_charge
+WHERE report_date = '{{logDate}}'
+GROUP BY game_id, report_date, media_source, campaign_id, country_code, currency_code
+

@@ -1,0 +1,45 @@
+{
+    "description": "GNOTH Feature set",
+    "inputSources": [
+        {
+            "name": "active",
+            "type": "jdbc",
+            "connection": "GDS_POSTGRES",
+            "table": "(SELECT report_date, active_time, user_id FROM gnoth.ops.daily_role_active_details) AS t",
+            "cache": true
+        },
+        {
+            "name": "charge",
+            "type": "jdbc",
+            "connection": "GDS_POSTGRES",
+            "table": "(SELECT report_date, user_id, SUM(amount_in_vnd) / 25000 AS rev_usd FROM gnoth.ops.daily_role_charge_details GROUP BY 1,2) AS t"
+        },
+        {
+            "name": "base_users",
+            "type": "jdbc",
+            "connection": "GDS_POSTGRES",
+            "table": "(SELECT user_id, media_source, campaign_id, platform, country_code AS country, first_login_time::DATE AS first_login_date, install_time::DATE AS install_date, total_rev / 25000 AS total_rev FROM gnoth.ops.user_profile) AS t"
+        },
+        {
+            "name": "item",
+            "type": "file",
+            "path": "/apps/hive/warehouse/gno_th_496.db/item_flow/*/*",
+            "format": "parquet"
+        },
+        {
+            "name": "money",
+            "type": "file",
+            "path": "/apps/hive/warehouse/gno_th_496.db/item_flow/*/*",
+            "format": "parquet"
+        }
+    ],
+    "sqlTemplate": "templates/ltv/feature_set.sql.j2",
+    "outputs": [
+        {
+            "type": "jdbc",
+            "connection": "TSN_POSTGRES",
+            "table": "public.feature_set",
+            "mode": "append"
+        }
+    ]
+}

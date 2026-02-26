@@ -1,0 +1,23 @@
+{
+  "description": "L2M Active Users CONS: Write standardized active data to PostgreSQL",
+  "comment": "Consolidates standardized active user data into PostgreSQL analytics table",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/std/active/{logDate}",
+      "format": "parquet"
+    }
+  ],
+  "sqlTemplate": "templates/re-standardization/l2m/active.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.active",
+      "format": "parquet",
+      "mode": "append",
+      "deleteCondition": "active_date = DATE '{logDate}'"
+    }
+  ]
+}

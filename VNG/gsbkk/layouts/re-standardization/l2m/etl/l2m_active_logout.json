@@ -1,0 +1,19 @@
+{
+  "description": "L2M Active Logout ETL: Extract logout events from Trino",
+  "comment": "Extracts player logout activity data for L2M",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "sqlTemplate": "templates/re-standardization/l2m/active_logout.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/active_logout/{logDate}",
+      "format": "parquet"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+-- Standardized schema for new games across all countries
+SELECT
+    CAST(aid AS string) AS app_id,
+    CAST(COALESCE(cc, c) AS string) AS country,
+    CAST(d AS date) AS date,
+    CAST(
+        CASE 
+            WHEN aid RLIKE '^[0-9]+$' THEN COALESCE(iu, 0) + COALESCE(au, 0)
+            ELSE COALESCE(u, 0)
+        END AS long
+    ) AS downloads,  -- iOS: iu + au, Android: u
+    CAST(
+        CASE 
+            WHEN aid RLIKE '^[0-9]+$' THEN (COALESCE(ir, 0) + COALESCE(ar, 0)) / 100
+            ELSE COALESCE(r, 0) / 100
+        END AS long
+    ) AS revenue  -- iOS: ir + ar, Android: r
+FROM source_data
+WHERE aid IS NOT NULL
+  AND d IS NOT NULL

@@ -1,0 +1,130 @@
+{# Game Health Check: Server Performance (Daily/Weekly/Monthly)
+   Uses Jinja2 templating for cleaner, more maintainable SQL
+   
+   Variables:
+   - game_id: Game identifier (optional)
+   - log_date: Report date for filtering (optional)
+#}
+{% import 'macros.sql' as macros %}
+
+-- Game Health Check: Server Performance (Daily/Weekly/Monthly)
+-- Generated from Jinja2 template
+-- Standardized VIP logic using macro from templates/sql/macros.sql
+-- Output: Server metrics by VIP level and user type
+
+WITH user_profile_enhanced AS (
+    SELECT 
+        game_id,
+        user_id,
+        country_code,
+        COALESCE(DATE_TRUNC('month', CAST(first_login_time AS DATE)), DATE_TRUNC('month', CAST(register_time AS DATE))) AS nru_month,
+        DATE_TRUNC('month', CAST(last_login_time AS DATE)) AS last_login_month,
+        CAST(last_charge_time AS DATE) AS last_charge_date,
+        CAST(first_charge_time AS DATE) AS first_charge_date,
+        {{ macros.calculate_vip('total_rev') }} AS vip_level
+    FROM user_profile
+    {% if game_id %}WHERE game_id = '{{ game_id }}'{% endif %}
+),
+
+user_active_base AS (
+    SELECT DISTINCT
+        game_id,
+        user_id,
+        server_id,
+        report_date AS date,
+        DATE_TRUNC('week', report_date) AS week,
+        DATE_TRUNC('month', report_date) AS month
+    FROM active_details
+    {% if log_date %}WHERE report_date = '{{ log_date }}'{% endif %}
+),
+
+user_charge_base AS (
+    SELECT
+        game_id,
+        user_id,
+        server_id,
+        report_date AS date,
+        DATE_TRUNC('week', report_date) AS week,
+        DATE_TRUNC('month', report_date) AS month,
+        amount_in_vnd
+    FROM charge_details
+    {% if log_date %}WHERE report_date = '{{ log_date }}'{% endif %}
+),
+
+active_users AS (
+    SELECT 
+        ua.game_id,
+        ua.date,
+        ua.week,
+        ua.month,
+        up.country_code,
+        up.vip_level,
+        ua.server_id,
+        {{ macros.user_type('up.last_login_month', 'ua.month') }} AS user_type,
+        COUNT(DISTINCT ua.user_id) AS DAU,
+        COUNT(DISTINCT CASE WHEN up.nru_month = ua.month THEN ua.user_id END) AS NRU
+    FROM user_active_base ua
+    LEFT JOIN user_profile_enhanced up
+        ON ua.user_id = up.user_id
+        AND ua.game_id = up.game_id
+    GROUP BY ua.game_id, ua.date, ua.week, ua.month, up.country_code, up.vip_level, ua.server_id, user_type
+),
+
+paying_users AS (
+    SELECT 
+        uc.game_id,
+        uc.date,
+        uc.week,
+        uc.month,
+        up.country_code,
+        up.vip_level,
+        uc.server_id,
+        {{ macros.user_type('up.last_login_month', 'uc.month') }} AS user_type,
+        COUNT(DISTINCT uc.user_id) AS PU,
+        COUNT(DISTINCT CASE WHEN DATE_TRUNC('month', up.first_charge_date) = uc.month THEN uc.user_id END) AS NPU,
+        COUNT(DISTINCT CASE 
+            WHEN DATE_TRUNC('month', up.first_charge_date) = uc.month 
+            AND up.nru_month = uc.month 
+            THEN uc.user_id 
+        END) AS NNPU,
+        SUM(uc.amount_in_vnd) AS rev_vnd,
+        SUM(CASE WHEN DATE_TRUNC('month', up.first_charge_date) = uc.month THEN uc.amount_in_vnd END) AS rev_npu,
+        SUM(CASE 
+            WHEN DATE_TRUNC('month', up.first_charge_date) = uc.month 
+            AND up.nru_month = uc.month 
+            THEN uc.amount_in_vnd 
+        END) AS rev_nnpu
+    FROM user_charge_base uc
+    LEFT JOIN user_profile_enhanced up
+        ON uc.user_id = up.user_id
+        AND uc.game_id = up.game_id
+    GROUP BY uc.game_id, uc.date, uc.week, uc.month, up.country_code, up.vip_level, uc.server_id, user_type
+)
+
+-- Final consolidated output (can be aggregated by date/week/month in layout)
+SELECT
+    au.date,
+    au.week,
+    au.month,
+    au.country_code,
+    au.server_id,
+    au.user_type,
+    au.vip_level,
+    au.DAU,
+    au.NRU,
+    COALESCE(pu.PU, 0) AS PU,
+    COALESCE(pu.NPU, 0) AS NPU,
+    COALESCE(pu.NNPU, 0) AS NNPU,
+    COALESCE(pu.rev_vnd, 0) AS rev_vnd,
+    COALESCE(pu.rev_npu, 0) AS rev_npu,
+    COALESCE(pu.rev_nnpu, 0) AS rev_nnpu
+FROM active_users au
+LEFT JOIN paying_users pu
+    ON au.game_id = pu.game_id
+    AND au.date = pu.date
+    AND au.week = pu.week
+    AND au.month = pu.month
+    AND au.country_code = pu.country_code
+    AND au.server_id = pu.server_id
+    AND au.user_type = pu.user_type
+    AND au.vip_level = pu.vip_level

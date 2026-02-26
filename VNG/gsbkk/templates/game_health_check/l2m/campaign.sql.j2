@@ -1,0 +1,21 @@
+-- L2M Game Health Check: Campaign data (no date partition)
+-- Extracts from GDS Postgres public.mkt_campaigns
+-- Filters duplicates by selecting latest row based on updated_at
+WITH ranked_campaigns AS (
+    SELECT 
+        campaign_id,
+        media_source,
+        campaign_name,
+        updated_at,
+        ROW_NUMBER() OVER (
+            PARTITION BY campaign_id, media_source 
+            ORDER BY updated_at DESC
+        ) as rn
+    FROM public.mkt_campaigns
+)
+SELECT 
+    campaign_id,
+    media_source,
+    campaign_name
+FROM ranked_campaigns
+WHERE rn = 1

@@ -1,0 +1,32 @@
+WITH game_tags_cleaned AS (
+    SELECT 
+        app_id,
+        MAX(CASE WHEN tag_name = 'Game Genre' THEN tag_value END) AS genre,
+        MAX(CASE WHEN tag_name = 'Game Sub-genre' THEN tag_value END) AS sub_genre,
+        MAX(CASE WHEN tag_name = 'Game Art Style' THEN tag_value END) AS art_style,
+        MAX(CASE WHEN tag_name = 'Game Theme' THEN tag_value END) AS theme,
+        MAX(CASE WHEN tag_name = 'Game Class' THEN tag_value END) AS class
+    FROM game_tags
+    GROUP BY 1
+),
+aggregated AS (
+    SELECT
+        unified_app_id,
+        MIN(name) AS name,
+        MIN(genre) AS genre,
+        MIN(sub_genre) AS sub_genre,
+        MIN(art_style) AS art_style,
+        MIN(theme) AS theme
+    FROM game_tags_cleaned LEFT JOIN metadata USING(app_id)
+    GROUP BY 1
+)
+SELECT 
+    a.unified_app_id,
+    a.name,
+    a.genre,
+    a.sub_genre,
+    a.art_style,
+    a.theme
+FROM aggregated a
+LEFT JOIN current_dim_apps c USING(unified_app_id)
+WHERE c.unified_app_id IS NULL

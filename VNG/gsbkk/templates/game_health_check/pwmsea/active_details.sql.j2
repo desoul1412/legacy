@@ -1,0 +1,10 @@
+-- PWMSEA Game Health Check: Transaction-level user activity
+-- Extracts from GDS Postgres ops.daily_role_active_details
+-- Queries via JDBC (already connected to pwmsea database)
+SELECT 
+    game_id,
+    user_id,
+    server_id,
+    report_date
+FROM ops.daily_role_active_details
+WHERE report_date = '{{logDate}}'

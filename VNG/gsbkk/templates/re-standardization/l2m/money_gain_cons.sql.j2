@@ -1,0 +1,6 @@
+-- Enrich money gain data with user country information
+SELECT 
+    m.*, 
+    COALESCE(u.country_code, 'Unknown') AS country_code 
+FROM money_data m 
+LEFT JOIN user_profile u ON m.user_id = u.user_id

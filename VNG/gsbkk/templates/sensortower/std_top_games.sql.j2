@@ -1,0 +1,10 @@
+-- Standardized schema for top games across all countries
+SELECT
+    CAST(app_id AS string) AS app_id,
+    CAST(country AS string) AS country,
+    CAST(date AS date) AS month,
+    CAST(COALESCE(units_absolute, 0) AS long) AS downloads,
+    CAST(COALESCE(revenue_absolute, 0) / 100 AS long) AS revenue
+    {# current_timestamp() AS created_at #}
+FROM source_data
+WHERE app_id IS NOT NULL

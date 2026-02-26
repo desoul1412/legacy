@@ -1,0 +1,139 @@
+{# Game Health Check: Diagnostic Data - Daily campaign performance
+   Uses Jinja2 templating for cleaner, more maintainable SQL
+   
+   Variables:
+   - game_id: Game identifier (optional, can be injected by ETL process)
+   - log_date: Report date for filtering (optional)
+#}
+{% import 'macros.sql' as macros %}
+
+-- Game Health Check: Diagnostic Data - Daily campaign performance
+-- Generated from Jinja2 template
+-- Standardized VIP logic (total_rev / 25840 thresholds)
+
+WITH user_profile_vip AS (
+    SELECT 
+        game_id,
+        user_id,
+        country_code,
+        {{ macros.calculate_vip('total_rev') }} AS vip_level
+    FROM user_profile
+    {% if game_id %}WHERE game_id = '{{ game_id }}'{% endif %}
+),
+
+currency_with_usd AS {{ macros.latest_usd_rate() }},
+
+latest_currency_month AS (
+    SELECT MAX(report_month) as max_month
+    FROM currency_with_usd
+),
+
+charge_with_currency AS (
+    SELECT
+        c.game_id,
+        c.report_date,
+        c.media_source,
+        c.campaign_id,
+        c.country_code,
+        SUM({{ macros.to_usd('c.revenue', 'cm') }}) as Revenue,
+        SUM({{ macros.to_usd('c.grossrev_npu', 'cm') }}) as GrossNPU,
+        SUM({{ macros.to_usd('c.grossrev_nnpu', 'cm') }}) as GrossNNPU,
+        -- Gross NRU metrics (01, 03, 07, 14, 21, 30, 60, 90, 120, 150, 180)
+        {{ macros.gross_revenue_metrics('c', 'cm') }},
+        -- Gross RPI metrics (01, 03, 07, 14, 21, 30, 60, 90, 120, 150, 180)
+        {{ macros.gross_rpi_metrics('c', 'cm') }}
+    FROM charge_details c
+    LEFT JOIN currency_with_usd cm
+        ON c.currency_code = cm.currency_code
+        AND (
+            DATE_FORMAT(c.report_date, 'yyyy-MM') = cm.report_month
+            OR (DATE_FORMAT(c.report_date, 'yyyy-MM') > (SELECT max_month FROM latest_currency_month)
+                AND cm.report_month = (SELECT max_month FROM latest_currency_month))
+        )
+    {% if log_date %}WHERE c.report_date = '{{ log_date }}'{% endif %}
+    GROUP BY c.game_id, c.report_date, c.media_source, c.campaign_id, c.country_code
+),
+
+active_aggregated AS (
+    SELECT
+        a.game_id,
+        a.report_date,
+        a.media_source,
+        a.campaign_id,
+        camp.campaign_name,
+        a.country_code,
+        SUM(a.cost) as cost,
+        SUM(a.installs) as installs,
+        SUM(a.nru) as nru,
+        SUM(a.dau) as dau,
+        SUM(a.pu) as dpu,
+        SUM(a.npu) as npu,
+        SUM(a.nnpu) as nnpu
+    FROM active_details a
+    LEFT JOIN campaign camp
+        ON a.media_source = camp.media_source
+        AND a.campaign_id = camp.campaign_id
+    {% if log_date %}WHERE a.report_date = '{{ log_date }}'{% endif %}
+    GROUP BY a.game_id, a.report_date, a.media_source, a.campaign_id, camp.campaign_name, a.country_code
+),
+
+retention_aggregated AS (
+    SELECT
+        r.game_id,
+        r.report_date,
+        r.media_source,
+        r.campaign_id,
+        r.country_code,
+        SUM(r.ruser01) as ruser01,
+        SUM(r.ruser03) as ruser03,
+        SUM(r.ruser07) as ruser07,
+        SUM(r.ruser14) as ruser14,
+        SUM(r.ruser21) as ruser21,
+        SUM(r.ruser30) as ruser30
+    FROM retention_details r
+    {% if log_date %}WHERE r.report_date = '{{ log_date }}'{% endif %}
+    GROUP BY r.game_id, r.report_date, r.media_source, r.campaign_id, r.country_code
+)
+
+SELECT
+    a.game_id,
+    a.report_date,
+    a.media_source,
+    a.campaign_id,
+    a.campaign_name,
+    a.country_code,
+    a.cost,
+    a.installs,
+    a.nru,
+    a.dau,
+    a.dpu,
+    a.npu,
+    a.nnpu,
+    COALESCE(c.Revenue, 0) as revenue,
+    COALESCE(c.GrossNPU, 0) as grossnpu,
+    COALESCE(c.GrossNNPU, 0) as grossnnpu,
+    {% for day in [1, 3, 7, 14, 21, 30, 60, 90, 120, 150, 180] %}
+    COALESCE(c.GrossNRU{{ '%02d' % day }}, 0) as grossnru{{ '%02d' % day }},
+    {% endfor %}
+    {% for day in [1, 3, 7, 14, 21, 30, 60, 90, 120, 150, 180] %}
+    COALESCE(c.GrossRPI{{ '%02d' % day }}, 0) as grossrpi{{ '%02d' % day }},
+    {% endfor %}
+    COALESCE(r.ruser01, 0) as ruser01,
+    COALESCE(r.ruser03, 0) as ruser03,
+    COALESCE(r.ruser07, 0) as ruser07,
+    COALESCE(r.ruser14, 0) as ruser14,
+    COALESCE(r.ruser21, 0) as ruser21,
+    COALESCE(r.ruser30, 0) as ruser30
+FROM active_aggregated a
+LEFT JOIN charge_with_currency c
+    ON a.game_id = c.game_id
+    AND a.report_date = c.report_date
+    AND a.media_source = c.media_source
+    AND a.campaign_id = c.campaign_id
+    AND a.country_code = c.country_code
+LEFT JOIN retention_aggregated r
+    ON a.game_id = r.game_id
+    AND a.report_date = r.report_date
+    AND a.media_source = r.media_source
+    AND a.campaign_id = r.campaign_id
+    AND a.country_code = r.country_code

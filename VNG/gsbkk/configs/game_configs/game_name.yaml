@@ -1,0 +1,94 @@
+games:
+  pwmsea:
+    market_type: sea
+    schema_version: v2
+    countries:
+      - "*":
+          country_code: "*"
+          game_name: "425 - Perfect World M - SEA"
+          rfc_sheet_id: "1NeHH7s2snqcQdpSak4xn7NdwrPXy4_SmOvtxdawADaw"
+
+  gnoth:
+    market_type: single
+    schema_version: v2
+    countries:
+      - "*":
+          country_code: "*"
+          game_name: "496 - Gunny Origin - TH"
+          rfc_sheet_id: "1wHuH2QSERkACZJlNRXvHnX2HKXk2vDdfVUs75jiX-VU"
+
+  l2m:
+    market_type: multi
+    schema_version: v3
+    countries:
+      - TH:
+          country_code: "TH"
+          game_name: "JV1 - Lineage 2 - TH"
+          rfc_sheet_id: "15ZS3fUtg80QEqcskOWBWDRqvF5ZQmD583yS_PlGmc3w"
+      - ID:
+          country_code: "ID"
+          game_name: "JV1 - Lineage 2 - ID"
+          rfc_sheet_id: "1rZmR9xtspyP_HpgyjlvuVdigAX2MkDCMa-0tO_id_cw"
+      - PH:
+          country_code: "PH"
+          game_name: "JV1 - Lineage 2 - PH"
+          rfc_sheet_id: "1mFMEE2vPh1sWUO-Wl0lOpnk5D_RLXZG6eBPjbPrF578"
+      - MY:
+          country_code: "MY"
+          game_name: "JV1 - Lineage 2 - MY"
+          rfc_sheet_id: "1zcknYjgj_0gpBTpI-J-8WG9SsoOOfyyDfnjkPaO0R18"
+      - SG:
+          country_code: "SG"
+          game_name: "JV1 - Lineage 2 - SG"
+          rfc_sheet_id: "1ccTxaZQ5clccWbeY668zY0Dss93cphcIISw6Z2P7V9Q"
+      - VN:
+          country_code: "VN"
+          game_name: "JV1 - Lineage 2 - VN"
+          rfc_sheet_id: "1NwSqFlS_Ih6MbRu4z7HSMYrYTLJ5griwAH4PR4l-mKY"
+      - OTHER:
+          country_code: "OTHER"
+          game_name: "JV1 - Lineage 2 - OTHER"
+          rfc_sheet_id: "1pUldcEPbAVsmkjI_Ttuhqvas2dkWK3oo5S4XTB1OK3k"
+      - SEA:
+          country_code: "SEA"
+          game_name: "JV1 - Lineage 2 - SEA (Aggregate)"
+          rfc_sheet_id: "1dtWbNyBaaiROAgyDbWUvpJhmbiyZ5NeqJg3rLS-kIzg"
+          aggregate: true  # Aggregate all countries, no country filter
+
+  lw:
+    market_type: multi
+    schema_version: v3
+    countries:
+      - TH:
+          country_code: "TH"
+          game_name: "JV2 - Lineage W - TH"
+          rfc_sheet_id: "1SA9rT2lZ0H4Ss0ccICDlnMwuo3y_TGmPGZIlZ65VzMU"
+      - ID:
+          country_code: "ID"
+          game_name: "JV2 - Lineage W - ID"
+          rfc_sheet_id: "1JcIKeiNbsSv2UkSWfBPo0jzIny2odcw7Tmjuou0_ibg"
+      - PH:
+          country_code: "PH"
+          game_name: "JV2 - Lineage W - PH"
+          rfc_sheet_id: "1IVURmUABP3yrTDPp9PbHK864ZX3CNUljyL5r9X3eey4"
+      - MY:
+          country_code: "MY"
+          game_name: "JV2 - Lineage W - MY"
+          rfc_sheet_id: "1RCQzUvQK9nX5Y0gz7ap8bV2mOaHGx_zV1hDsxVkEhgY"
+      - SG:
+          country_code: "SG"
+          game_name: "JV2 - Lineage W - SG"
+          rfc_sheet_id: "1EXzPIRD0it4C4J7AIKM-lskM5k30Toyxxdo0d25p6gw"
+      - VN:
+          country_code: "VN"
+          game_name: "JV2 - Lineage W - VN"
+          rfc_sheet_id: "1YKC0gBgp0IlVSmnY02JRU-Bry4qQICds33-jQQ4x2HY"
+      - OTHER:
+          country_code: "OTHER"
+          game_name: "JV2 - Lineage W - OTHER"
+          rfc_sheet_id: "1nyiihuiZshwX7Kydp8gcWbSejs6BUDCEKrkyD3eRqkY"
+      - SEA:
+          country_code: "SEA"
+          game_name: "JV2 - Lineage W - SEA (Aggregate)"
+          rfc_sheet_id: "1dtWbNyBaaiROAgyDbWUvpJhmbiyZ5NeqJg3rLS-kIzg"
+          aggregate: true  # Aggregate all countries, no country filter

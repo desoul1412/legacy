@@ -1,0 +1,13 @@
+-- L2M Game Health Check: Transaction-level charge from Trino
+-- Extracts from iceberg.l2m.etl_recharge
+SELECT 
+    'l2m' AS game_id,
+    actor_str3 AS user_id,
+    actor_name AS role_id,
+    actor_world AS server_id,
+    trans_id AS transaction_id,
+    paytype AS product_id,
+    DATE(logtime + INTERVAL '7' HOUR) AS report_date,
+    cash * 1000 AS amount_in_vnd
+FROM iceberg.l2m.etl_recharge
+WHERE DATE(logtime + INTERVAL '7' HOUR) = DATE '{{logDate}}'

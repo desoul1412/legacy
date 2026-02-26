@@ -1,0 +1,33 @@
+{
+  "description": "SensorTower: Consolidated Market Insights Report",
+  "comment": "Union all apps into a comprehensive market insights report",
+  "inputSources": [
+    {
+      "name": "top_games",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/top_games/month={logDate}-01",
+      "format": "parquet"
+    },
+    {
+      "name": "new_games",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/new_games/month={logDate}-01",
+      "format": "parquet"
+    }
+  ],
+  "sqlTemplate": "templates/market_research/market_insights.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/cons/market_insights",
+      "format": "parquet",
+      "mode": "append"
+    },
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.market_insights",
+      "mode": "append"
+    }
+  ]
+}

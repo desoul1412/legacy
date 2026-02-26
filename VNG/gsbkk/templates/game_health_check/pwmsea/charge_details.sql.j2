@@ -1,0 +1,13 @@
+-- PWMSEA Game Health Check: Transaction-level charge
+-- Extracts from GDS Postgres ops.daily_role_charge_details
+SELECT 
+    game_id,
+    user_id,
+    role_id,
+    server_id,
+    transaction_id,
+    product_id,
+    report_date,
+    amount_in_vnd
+FROM ops.daily_role_charge_details
+WHERE report_date = '{{logDate}}'

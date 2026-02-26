@@ -1,0 +1,9 @@
+-- Extract login events for active users
+-- Output: user_id, server_id, level, active_date (for STD active union)
+SELECT 
+    actor_str3 AS user_id,
+    actor_world AS server_id,
+    actor_level AS level,
+    ds as active_date
+FROM iceberg.l2m.etl_login
+WHERE DATE(logtime + INTERVAL '7' HOUR) = DATE '{{logDate}}'

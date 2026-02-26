@@ -1,0 +1,26 @@
+{
+    "description": "Monthly Rolling Forecast: Read monthly RFC data from Google Sheets and write to PostgreSQL",
+    "comment": "This layout reads from 'Monthly Overall' sheet and stores in rfc_monthly table with append mode",
+    "inputSources": [
+        {
+            "name": "monthly_rfc",
+            "type": "gsheet",
+            "sheet_id": "1F0DpS1Kw43G_mbbluVCLx2HcSCoASk2IzDE3n2rDR7w",
+            "range": "Monthly Overall!A2:V",
+            "comment": "Monthly RFC data range starting from row 2 (skips header)"
+        }
+    ],
+    "sqlTemplate": "templates/rolling_forecast/gsheet_monthly_rfc.sql.j2",
+    "outputs": [
+        {
+            "name": "postgres",
+            "type": "jdbc",
+            "connection": "TSN_POSTGRES",
+            "table": "public.rfc_monthly",
+            "mode": "append",
+            "add_updated_at": true,
+            "deleteCondition": "(month IS NULL OR game IS NULL) OR SUBSTRING(month, 1, 4) = '2026'",
+            "comment": "Append mode with delete condition for idempotent updates"
+        }
+    ]
+}

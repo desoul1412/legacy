@@ -1,0 +1,20 @@
+{
+  "description": "SensorTower: Raw New Games → ETL (Parquet)",
+  "comment": "Converts raw new games JSON data to parquet format for efficient processing",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "json",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/new_games/{logDate}"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/new_games/{logDate}",
+      "format": "parquet",
+      "mode": "overwrite"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{# Rolling Forecast Google Sheet Output - Simple aggregation from diagnostic_daily
+   Outputs exactly 9 columns for gsheet: report_date, install, nru, rr01, dau, pu, npu, rev_usd, cost
+   
+   Variables:
+   - gameId: Game identifier (e.g., 'gnoth', 'l2m', 'pwmsea')
+   - logDate: Report date to extract
+   - market_type: 'single', 'sea', or 'multi' (determines aggregation level)
+   - countryCode: (Optional) For multi-market, filter specific country
+#}
+
+{% if market_type == 'single' or market_type == 'sea' %}
+-- Single/SEA market: Aggregate all countries to report_date level
+SELECT
+    d.report_date,
+    SUM(d.installs) as install,
+    SUM(d.nru) as nru,
+    CASE WHEN SUM(d.nru) > 0 THEN ROUND(CAST(SUM(d.ruser01) * 100.0 / SUM(d.nru) AS NUMERIC), 2) ELSE 0 END as rr01,
+    SUM(d.dau) as dau,
+    SUM(d.dpu) as pu,
+    SUM(d.npu) as npu,
+    SUM(d.revenue) as rev_usd,
+    SUM(d.cost) as cost
+FROM public.ghc_diagnostic_daily_{{ gameId }} d
+WHERE d.report_date IN (DATE '{{ logDate }}', DATE '{{ logDate }}' - INTERVAL '1 day')
+GROUP BY d.report_date
+ORDER BY d.report_date DESC
+
+{% else %}
+-- Multi-market: Keep country dimension for filtering
+SELECT
+    d.report_date,
+    SUM(d.installs) as install,
+    SUM(d.nru) as nru,
+    CASE WHEN SUM(d.nru) > 0 THEN ROUND(CAST(SUM(d.ruser01) * 100.0 / SUM(d.nru) AS NUMERIC), 2) ELSE 0 END as rr01,
+    SUM(d.dau) as dau,
+    SUM(d.dpu) as pu,
+    SUM(d.npu) as npu,
+    SUM(d.revenue) as rev_usd,
+    SUM(d.cost) as cost
+FROM public.ghc_diagnostic_daily_{{ gameId }} d
+WHERE d.report_date IN (DATE '{{ logDate }}', DATE '{{ logDate }}' - INTERVAL '1 day')
+{% if countryCode %}  AND d.country_code = '{{ countryCode }}'
+{% endif %}GROUP BY d.report_date
+ORDER BY d.report_date DESC
+{% endif %}

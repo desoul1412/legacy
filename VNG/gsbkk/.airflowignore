@@ -1,0 +1,47 @@
+# .airflowignore
+# Files and directories to exclude from Airflow DAG parsing
+# Uses .gitignore syntax (glob patterns)
+
+# Documentation files
+*.md
+docs/
+references/
+
+# Code cleanup and project management
+CODE_CLEANUP_SUMMARY.md
+JINJA2_GUIDE.md
+QUICKSTART.md
+
+# Test files
+tests/
+*_test.py
+test_*.py
+
+# Examples
+layouts/examples/
+dags/examples/
+
+# Backup files
+layouts_backup_*/
+*.bak
+*.backup
+
+# IDE and editor files  
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Scripts not used by Airflow
+run_*.sh
+spark-runner.sh
+scripts/

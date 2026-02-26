@@ -1,0 +1,32 @@
+{# Game Health Check: Consolidated Metrics
+   Join KPI metrics with retention data
+   
+   Variables:
+   - game_id: Game identifier (optional)
+   - log_date: Report date for filtering (optional)
+#}
+{% import 'macros.sql' as macros %}
+
+-- Game Health Check Consolidated Metrics
+-- Generated from Jinja2 template
+-- Join KPI metrics with retention data
+
+SELECT 
+    kpi.game_id,
+    kpi.metric_date,
+    kpi.dau,
+    kpi.daily_revenue,
+    kpi.arpu,
+    retention.d1_retained / NULLIF(retention.cohort_size, 0) as d1_retention_rate,
+    retention.d7_retained / NULLIF(retention.cohort_size, 0) as d7_retention_rate,
+    retention.d30_retained / NULLIF(retention.cohort_size, 0) as d30_retention_rate
+FROM kpi
+LEFT JOIN retention 
+    ON kpi.game_id = retention.game_id 
+    AND kpi.metric_date = retention.cohort_date
+{% if game_id %}
+WHERE kpi.game_id = '{{ game_id }}'
+{% endif %}
+{% if log_date %}
+{{ 'AND' if game_id else 'WHERE' }} kpi.metric_date = '{{ log_date }}'
+{% endif %}

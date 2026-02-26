@@ -1,0 +1,49 @@
+{
+  "project": "market_research",
+  "description": "Sensor Tower API data extraction and processing",
+  "token": "${SENSORTOWER_API_KEY}",
+  "countries": ["VN", "TH", "US", "ID", "PH"],
+  "hadoop_base_path": "hdfs://c0s/user/gsbkk-workspace-yc9t6",
+  "postgres": {
+    "host": "${TSN_POSTGRES_HOST}",
+    "port": 5432,
+    "user": "${TSN_POSTGRES_USER}",
+    "password": "${TSN_POSTGRES_PASSWORD}"
+  },
+  "postgres_db": {
+    "database": "sensortower",
+    "schema": "public",
+    "table": "fact"
+  },
+  "std_transform": {
+    "project": "sensortower",
+    "sourceLog": "etl",
+    "schemas": [
+      {
+        "logType": "top_games",
+        "columns": [
+          {"colName": "unified_app_id"},
+          {"colName": "app_id"},
+          {"colName": "country_code", "rename": "country"},
+          {"colName": "month", "funcs": ["cast(date)"]},
+          {"colName": "downloads"},
+          {"colName": "revenue"},
+          {"colName": "rank"},
+          {"colName": "category"}
+        ]
+      },
+      {
+        "logType": "new_games",
+        "columns": [
+          {"colName": "unified_app_id"},
+          {"colName": "app_id"},
+          {"colName": "country_code", "rename": "country"},
+          {"colName": "month", "funcs": ["cast(date)"]},
+          {"colName": "downloads"},
+          {"colName": "revenue"},
+          {"colName": "release_date", "funcs": ["cast(date)"]}
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "GNOTH Game Health Check - Extract retention data",
+  "inputSources": [
+    {
+      "name": "retention_data",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "sqlTemplate": "templates/game_health_check/gnoth/retention_data.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/gnoth/std/retention",
+      "format": "parquet",
+      "mode": "append",
+      "partitionBy": [
+        "report_date"
+      ],
+      "comment": "Partitioned by report_date to support writing both logDate and logDate-1"
+    }
+  ]
+}

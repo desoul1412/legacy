@@ -1,0 +1,21 @@
+{
+  "description": "SensorTower: Daily Performance ETL → Standardized",
+  "comment": "Standardizes performance metrics with consistent schema",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/performance/month={logDate}-01"
+    }
+  ],
+  "sqlTemplate": "templates/sensortower/std_daily_performance.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/performance/month={logDate}-01",
+      "format": "parquet",
+      "mode": "append"
+    }
+  ]
+}

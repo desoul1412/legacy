@@ -1,0 +1,8 @@
+-- Extract logout events for active users
+-- Output: user_id, server_id, level (for STD active union)
+SELECT 
+    actor_str3 AS user_id,
+    actor_world AS server_id,
+    actor_level AS level
+FROM iceberg.l2m.etl_logout
+WHERE DATE(logtime + INTERVAL '7' HOUR) = DATE '{{logDate}}'

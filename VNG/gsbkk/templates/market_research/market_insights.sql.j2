@@ -1,0 +1,17 @@
+SELECT
+    app_id,
+    country,
+    CASE WHEN app_id RLIKE '^[0-9]+$' THEN 'ios' ELSE 'android' END AS os,
+    month,
+    downloads,
+    revenue
+FROM top_games
+UNION ALL
+SELECT
+    app_id,
+    country,
+    CASE WHEN app_id RLIKE '^[0-9]+$' THEN 'ios' ELSE 'android' END AS os,
+    CAST(date as DATE) as month,
+    downloads,
+    revenue
+FROM new_games

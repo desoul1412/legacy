@@ -1,0 +1,39 @@
+-- L2M Game Health Check: Campaign aggregated charge metrics
+-- Extracts from GDS Postgres public.mkt_user_charge (L2M schema)
+SELECT 
+    game_id,
+    report_date,
+    media_source,
+    campaign_id,
+    country_code,
+    currency_code,
+    SUM(rev) as revenue,
+    SUM(rev_npu) as grossrev_npu,
+    SUM(rev_nnpu) as grossrev_nnpu,
+    SUM(rev_nru1) as grossnru01,
+    SUM(rev_nru3) as grossnru03,
+    SUM(rev_nru7) as grossnru07,
+    SUM(rev_nru14) as grossnru14,
+    SUM(rev_nru21) as grossnru21,
+    SUM(rev_nru30) as grossnru30,
+    SUM(rev_nru60) as grossnru60,
+    SUM(rev_nru90) as grossnru90,
+    SUM(rev_nru120) as grossnru120,
+    SUM(rev_nru150) as grossnru150,
+    SUM(rev_nru180) as grossnru180,
+    SUM(rev_install0) as grossrpi00,
+    SUM(rev_install1) as grossrpi01,
+    SUM(rev_install3) as grossrpi03,
+    SUM(rev_install7) as grossrpi07,
+    SUM(rev_install14) as grossrpi14,
+    SUM(rev_install21) as grossrpi21,
+    SUM(rev_install30) as grossrpi30,
+    SUM(rev_install60) as grossrpi60,
+    SUM(rev_install90) as grossrpi90,
+    SUM(rev_install120) as grossrpi120,
+    SUM(rev_install150) as grossrpi150,
+    SUM(rev_install180) as grossrpi180
+FROM public.mkt_user_charge
+WHERE report_date = '{{logDate}}'
+GROUP BY game_id, report_date, media_source, campaign_id, country_code, currency_code
+

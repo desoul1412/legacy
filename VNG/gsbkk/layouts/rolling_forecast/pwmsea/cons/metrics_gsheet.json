@@ -1,0 +1,23 @@
+{
+  "description": "PWMSEA Rolling Forecast - Consolidate metrics from diagnostic_daily and write to Postgres + Google Sheet",
+  "inputSources": [
+    {
+      "name": "diagnostic",
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "sqlTemplate": "templates/rolling_forecast/rolling_forecast_gsheet.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "gsheet",
+      "type": "gsheet",
+      "sheet_id": "1NeHH7s2snqcQdpSak4xn7NdwrPXy4_SmOvtxdawADaw",
+      "range": "Daily Actual!A3",
+      "columns": ["report_date", "install", "nru", "rr01", "dau", "pu", "npu", "rev_usd", "cost"],
+      "sort_by": [{"column": "report_date", "order": "desc"}],
+      "update_mode": "upsert",
+      "key_column": "report_date"
+    }
+  ]
+}

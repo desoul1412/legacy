@@ -1,0 +1,8 @@
+{# Extract role first login/purchase time for NRU/NPU calculation from mkt_role_profile #}
+
+SELECT 
+    role_id,
+    first_login_time,
+    first_charge_time
+FROM {{table_path}}
+WHERE first_login_time = DATE '{{logDate}}' OR first_charge_time = DATE '{{logDate}}'

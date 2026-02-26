@@ -1,0 +1,54 @@
+{# Game Health Check: Package Performance
+   Uses Jinja2 templating for cleaner, more maintainable SQL
+   
+   Variables:
+   - game_id: Game identifier (optional)
+   - log_date: Report date for filtering (optional)
+#}
+{% import 'macros.sql' as macros %}
+
+-- Game Health Check: Package Performance
+-- Generated from Jinja2 template
+-- Standardized VIP logic using macro from templates/sql/macros.sql
+-- Output: Package sales by server/VIP/product
+
+WITH user_profile_vip AS (
+    SELECT 
+        game_id,
+        user_id,
+        country_code,
+        {{ macros.calculate_vip('total_rev') }} AS vip_level
+    FROM user_profile
+    {% if game_id %}WHERE game_id = '{{ game_id }}'{% endif %}
+),
+
+package_sales AS (
+    SELECT
+        c.report_date AS date,
+        c.user_id,
+        c.role_id,
+        c.server_id,
+        up.vip_level,
+        up.country_code,
+        c.transaction_id,
+        c.product_id,
+        c.amount_in_vnd AS rev_vnd
+    FROM charge_details c
+    LEFT JOIN user_profile_vip up
+        ON c.game_id = up.game_id
+        AND c.user_id = up.user_id
+    {% if log_date %}WHERE c.report_date = '{{ log_date }}'{% endif %}
+)
+
+SELECT
+    date,
+    server_id,
+    vip_level,
+    country_code,
+    product_id,
+    COUNT(DISTINCT user_id) AS total_users,
+    COUNT(DISTINCT role_id) AS total_roles,
+    COUNT(DISTINCT transaction_id) AS total_trans,
+    SUM(rev_vnd) AS rev_vnd
+FROM package_sales
+GROUP BY date, server_id, vip_level, country_code, product_id

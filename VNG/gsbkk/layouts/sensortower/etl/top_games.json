@@ -1,0 +1,21 @@
+{
+  "description": "SensorTower: Raw Top Games → ETL (Parquet)",
+  "comment": "Converts raw top games JSON data to parquet format for efficient processing",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "json",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/top_games/*/{logDate}"
+    }
+  ],
+  "sqlTemplate": "templates/sensortower/etl_top_games.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/top_games/{logDate}",
+      "format": "parquet",
+      "mode": "overwrite"
+    }
+  ]
+}

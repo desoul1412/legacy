@@ -1,0 +1,26 @@
+{% import 'sql/macros.sql' as macros %}
+-- L2M Recharge ETL - SINGLE SOURCE for both recharge and daily_revenue
+-- Extract recharge data with currency conversion from Trino Iceberg
+-- Timezone: +7 hours (ICT)
+-- Output: user_id, server_id, pmc, ds (INT yyyyMMdd), amount, daily_rev_usd (for cumulative calc)
+
+SELECT
+    game_account_id AS user_id,
+    game_server_id AS server_id,
+    CASE WHEN pg_id = '25' THEN 'Web' ELSE 'IAP' END AS pmc,
+    CAST(date_format(occurred + INTERVAL '7' HOUR, '%Y%m%d') AS INT) AS ds,
+    SUM(amount * exchange_rate) AS amount,
+    SUM(amount * exchange_rate / 25820) AS daily_rev_usd
+FROM iceberg.l2m.etl_recharge
+LEFT JOIN (
+    SELECT currency_code, exchange_rate 
+    FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY currency_code ORDER BY ym DESC) AS rn
+        FROM iceberg.l2m.etl_currency_mapping
+    ) 
+    WHERE rn = 1
+) AS currency_latest USING(currency_code)
+WHERE name = 'completed' 
+    AND {{ macros.date_filter('DATE(occurred + INTERVAL \'7\' HOUR)', logDate) }}
+GROUP BY game_account_id, game_server_id, pg_id, date_format(occurred + INTERVAL '7' HOUR, '%Y%m%d')
+

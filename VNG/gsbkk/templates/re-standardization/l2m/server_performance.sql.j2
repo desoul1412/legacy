@@ -1,0 +1,46 @@
+-- L2M Server Performance - Aggregated metrics by server
+-- Combines active users and revenue by server_id
+-- Metrics: dau, nru, pu, npu, nnpu, rev_usd, rev_npu, rev_nnpu
+
+WITH server_active AS (
+    SELECT
+        CAST('{{logDate}}' AS DATE) AS report_date,
+        a.server_id,
+        COUNT(DISTINCT a.user_id) AS dau,
+        COUNT(DISTINCT CASE WHEN p.first_login_time = CAST('{{logDate}}' AS DATE) THEN a.user_id END) AS nru
+    FROM active_tbl a
+    LEFT JOIN role_profile p ON CONCAT(a.user_id, a.server_id) = p.role_id
+    WHERE a.active_date = CAST('{{logDate}}' AS DATE)
+    GROUP BY a.server_id
+),
+
+server_revenue AS (
+    SELECT
+        TO_DATE(CAST(r.ds AS STRING), 'yyyyMMdd') AS report_date,
+        r.server_id,
+        COUNT(DISTINCT r.user_id) AS pu,
+        COUNT(DISTINCT CASE WHEN p.first_charge_time = CAST('{{logDate}}' AS DATE) THEN r.user_id END) AS npu,
+        COUNT(DISTINCT CASE WHEN p.first_charge_time = CAST('{{logDate}}' AS DATE) AND p.first_login_time = CAST('{{logDate}}' AS DATE) THEN r.user_id END) AS nnpu,
+        SUM(r.daily_rev_usd) AS rev_usd,
+        SUM(CASE WHEN p.first_charge_time = CAST('{{logDate}}' AS DATE) THEN r.daily_rev_usd ELSE 0 END) AS rev_npu,
+        SUM(CASE WHEN p.first_charge_time = CAST('{{logDate}}' AS DATE) AND p.first_login_time = CAST('{{logDate}}' AS DATE) THEN r.daily_rev_usd ELSE 0 END) AS rev_nnpu
+    FROM revenue_tbl r
+    LEFT JOIN role_profile p ON CONCAT(r.user_id, r.server_id) = p.role_id
+    WHERE TO_DATE(CAST(r.ds AS STRING), 'yyyyMMdd') = CAST('{{logDate}}' AS DATE)
+    GROUP BY r.ds, r.server_id
+)
+SELECT
+    'l2m' AS product_code,
+    COALESCE(a.report_date, r.report_date) AS date,
+    COALESCE(a.server_id, r.server_id) AS server_id,
+    CAST(NULL AS INT) AS vip_level,
+    COALESCE(a.dau, 0) AS dau,
+    COALESCE(a.nru, 0) AS nru,
+    COALESCE(r.pu, 0) AS pu,
+    COALESCE(r.npu, 0) AS npu,
+    COALESCE(r.nnpu, 0) AS nnpu,
+    COALESCE(r.rev_usd, 0) AS rev_usd,
+    COALESCE(r.rev_npu, 0) AS rev_npu,
+    COALESCE(r.rev_nnpu, 0) AS rev_nnpu
+FROM server_active a
+FULL OUTER JOIN server_revenue r ON a.report_date = r.report_date AND a.server_id = r.server_id

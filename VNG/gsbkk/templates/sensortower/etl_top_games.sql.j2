@@ -1,0 +1,8 @@
+-- Select specific columns for top games analysis
+SELECT
+    CAST(app_id AS string) AS app_id,
+    CAST(country AS string) AS country,
+    CAST(date AS timestamp) AS date,
+    CAST(revenue_absolute AS long) AS revenue_absolute,
+    CAST(units_absolute AS long) AS units_absolute
+FROM source_data

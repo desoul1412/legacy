@@ -1,0 +1,20 @@
+{
+  "description": "L2M Guild/Clan Info - Snapshot of latest clan membership (date-independent)",
+  "comment": "Consolidates current guild/clan membership snapshot into PostgreSQL",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "sqlTemplate": "templates/re-standardization/l2m/guild_info.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.l2m_guild_info",
+      "mode": "overwrite"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "project": "re_std",
+  "description": "Re-standardization consolidation for L2M - Daily role active",
+  "game_id": "l2m",
+  "source": "hadoop",
+  "sourceLog": "roles",
+  "outputPath": "{consPath}/{gameId}/{logType}/{logDate}",
+  "hadoop_base_path": "hdfs://c0s/user/gsbkk-workspace-yc9t6",
+  "schemas": [
+    {
+      "logType": "daily_role_active_details",
+      "columns": [
+        {"colName": "gameID", "rename": "game_id"},
+        {"colName": "userID", "rename": "user_id"},
+        {"colName": "roleID", "rename": "role_id"},
+        {"colName": "serverID", "rename": "server_id"},
+        {"colName": "reportDate", "rename": "report_date"},
+        {"colName": "activeTime", "rename": "active_time", "funcs": ["cast(timestamp)"]},
+        {"colName": "activeType", "rename": "active_type"}
+      ]
+    }
+  ],
+  "numPartitions": 1,
+  "dbType": "postgres",
+  "dbName": "gamedb",
+  "externalDbName": "l2m",
+  "postgres": {
+    "host": "${TSN_POSTGRES_HOST}",
+    "port": 5432,
+    "user": "${TSN_POSTGRES_USER}",
+    "password": "${TSN_POSTGRES_PASSWORD}"
+  },
+  "table": {
+    "name": "daily_role_active_details",
+    "keys": "game_id,report_date,user_id,role_id"
+  }
+}

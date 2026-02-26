@@ -1,0 +1,19 @@
+{
+  "description": "Currency mapping extraction - Monthly update on 2nd at 1PM GMT+7. This is a shared resource used by all pipelines for revenue conversion from local currency to USD/VND.",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "query": "(SELECT report_month, currency_code, exchange_rate_to_vnd, exchange_rate_to_vnd / NULLIF((SELECT MAX(exchange_rate_to_vnd) FROM public.currency_mapping vnd WHERE vnd.currency_code = 'VND' AND vnd.report_month = c.report_month), 0) AS exchange_rate_to_usd FROM public.currency_mapping c) as currency_data"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/currency_mapping",
+      "format": "parquet",
+      "mode": "overwrite"
+    }
+  ]
+}

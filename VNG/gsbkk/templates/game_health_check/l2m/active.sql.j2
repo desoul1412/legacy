@@ -1,0 +1,18 @@
+-- L2M Game Health Check: Campaign aggregated active metrics
+-- Extracts from GDS Postgres public.mkt_user_active (L2M schema)
+SELECT 
+    game_id,
+    report_date,
+    media_source,
+    campaign_id,
+    country_code,
+    SUM(dau) as dau,
+    SUM(nru) as nru,
+    SUM(installs) as installs,
+    SUM(cost) as cost,
+    SUM(pu) as pu,
+    SUM(npu) as npu,
+    SUM(nnpu) as nnpu
+FROM public.mkt_user_active
+WHERE report_date = '{{logDate}}'
+GROUP BY game_id, report_date, media_source, campaign_id, country_code

@@ -1,0 +1,36 @@
+{# CONS Layout Template
+   
+   Variables:
+   - project: Project name
+   - layout_name: Layout identifier
+   - sql_file: Path to SQL file (can be .sql or .sql.j2)
+   - input_tables: List of input table names
+   - table_name: Output table name
+   - description: Layout description
+   - enable_partition: Whether to enable partitioning (default: false)
+#}
+{
+  "mode": "cons",
+  "project": "{{ project }}",
+  "layout_name": "{{ layout_name }}",
+  "description": "{{ description }}",
+  "layer": "staging",
+  "table_name": "{{ table_name }}_{gameId}",
+  "sql_file": "{{ sql_file }}",
+  "input_tables": [
+    {% for table in input_tables %}
+    "{{ table }}"{{ ',' if not loop.last else '' }}
+    {% endfor %}
+  ],
+  "partition": {
+    "enable": {{ enable_partition|default(false)|lower }}
+    {% if enable_partition %}
+    "columns": ["report_date"]
+    {% endif %}
+  },
+  "metadata": {
+    "version": "3.0",
+    "created_by": "jinja2_template",
+    "template_file": "templates/layouts/cons_layout.json.j2"
+  }
+}

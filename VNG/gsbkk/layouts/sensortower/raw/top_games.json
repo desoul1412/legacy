@@ -1,0 +1,16 @@
+{
+  "description": "SensorTower Top Games API - Extract top games by country and category",
+  "note": "Raw API data extraction. Run via: ./run_api_extraction.sh sensortower top_games {month}",
+  "apiConfig": {
+    "source": "sensortower",
+    "endpoint": "v1/top_games",
+    "configFile": "configs/api/sensortower.json"
+  },
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/top_games/{month}",
+      "format": "json"
+    }
+  ]
+}

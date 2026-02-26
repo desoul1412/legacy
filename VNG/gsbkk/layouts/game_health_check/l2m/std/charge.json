@@ -1,0 +1,6 @@
+{
+  "description": "L2M Game Health Check - Aggregate charge metrics by campaign",
+  "inputSources": [{"name": "charge_data", "type": "jdbc", "connection": "GDS_POSTGRES", "sqlTemplate": "templates/game_health_check/l2m/charge.sql.j2"}],
+  "outputs": [{"type": "file", "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/l2m/std/charge/{logDate}", "format": "parquet"}]
+}
+

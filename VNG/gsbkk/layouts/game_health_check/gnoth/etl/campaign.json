@@ -1,0 +1,19 @@
+{
+  "description": "GNOTH Game Health Check - Extract campaign metadata (no date partition)",
+  "inputSources": [
+    {
+      "name": "campaign_data",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "sqlTemplate": "templates/game_health_check/gnoth/campaign.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/gnoth/campaign",
+      "format": "parquet",
+      "mode": "overwrite"
+    }
+  ]
+}

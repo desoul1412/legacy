@@ -1,0 +1,33 @@
+-- L2M Cumulative Revenue Calculation
+-- Combines yesterday's cumulative revenue with today's daily revenue
+-- Applies VIP grouping based on total revenue using standardized macro
+
+{% import 'sql/macros.sql' as macros %}
+
+WITH daily AS (
+    SELECT 
+        user_id, 
+        server_id, 
+        TO_DATE(CAST(ds AS STRING), 'yyyyMMdd') AS report_date, 
+        daily_rev_usd AS daily_rev 
+    FROM daily_revenue
+),
+combined AS (
+    SELECT 
+        COALESCE(d.user_id, p.user_id) AS user_id,
+        COALESCE(d.server_id, p.server_id) AS server_id,
+        CAST('{{logDate}}' AS DATE) AS ds,
+        COALESCE(d.daily_rev, 0) AS daily_rev,
+        COALESCE(p.total_rev, 0) AS prev_total_rev
+    FROM daily d
+    FULL OUTER JOIN prev_state p 
+        ON d.user_id = p.user_id 
+        AND d.server_id = p.server_id
+)
+SELECT 
+    user_id,
+    server_id,
+    ds,
+    prev_total_rev + daily_rev AS total_rev,
+    {{ macros.calculate_vip('prev_total_rev + daily_rev') }} AS user_group
+FROM combined

@@ -1,0 +1,41 @@
+# Product Code to Country Mapping Configuration
+# Used by game health check scripts for product_code assignment
+
+product_codes:
+  cloudsongsea:
+    "480 - Cloud Song - ID": ["ID"]
+    "477 - Cloud Song - TH": ["TH"]
+    
+  pwmsea:
+    "4251 - Perfect World M - TH": ["TH", "OTHER"]
+    "4252 - Perfect World M - PH": ["PH"]
+    "4253 - Perfect World M - ID": ["ID"]
+    "425 - Perfect World M - SEA": ["SEA"]  # Special: All countries aggregate
+    
+  fw2:
+    "A02 - Forsaken World 2 - TH": ["TH"]
+    "A04 - Forsaken World 2 - ID": ["ID"]
+    "A21 - Forsaken World 2 - PH": ["PH"]
+    
+  td:
+    "487 - Revelation - TH": ["TH"]
+    "490 - Revelation - ID": ["ID"]
+    
+  gnoth:
+    "496 - Gunny Origin - TH": ["TH", "na"]
+    
+  mts:
+    "665 - Metal Slug - TH": ["TH"]
+    "669 - Metal Slug - ID": ["ID"]
+    "668 - Metal Slug - PH": ["PH"]
+    
+  mlb:
+    "906 - Moonlight Blade - ID": ["ID"]
+    
+  slth:
+    "913 - Soul Land - TH": ["TH"]
+    
+  cft:
+    "917 - Cafe Town - TH": ["TH"]
+    "920 - Cafe Town - ID": ["ID"]
+    "919 - Cafe Town - PH": ["PH"]

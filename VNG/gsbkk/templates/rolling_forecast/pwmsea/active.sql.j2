@@ -1,0 +1,15 @@
+-- PWMSEA Rolling Forecast: Extract active metrics from TSN Postgres
+-- Reads from game health check diagnostic table
+-- Aggregates by report_date and country_code (SEA market)
+SELECT 
+    report_date,
+    country_code,
+    SUM(dau) as dau,
+    SUM(dpu) as pu,
+    SUM(npu) as npu,
+    SUM(nru) as nru,
+    SUM(cost) as cost,
+    SUM(installs) as installs
+FROM public.ghc_diagnostic_daily_pwmsea
+WHERE report_date = DATE '{{ logDate }}'
+GROUP BY report_date, country_code

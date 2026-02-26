@@ -1,0 +1,428 @@
+WITH filtered_users AS (
+    SELECT user_id, install_date
+    FROM base_users
+    WHERE install_date IS NOT NULL
+        AND DATEDIFF(CURRENT_DATE(), install_date) >= 7  -- Only users with at least 7 days of data
+),
+user_activity AS (
+    SELECT /*+ BROADCAST(b) */
+        a.user_id,
+        b.install_date,
+        DATEDIFF(a.report_date, b.install_date) AS days_since_install
+    FROM active a
+    INNER JOIN filtered_users b ON a.user_id = b.user_id
+    WHERE a.report_date >= b.install_date
+        AND DATEDIFF(a.report_date, b.install_date) BETWEEN 0 AND 7
+)
+,session_features AS (
+    SELECT 
+        user_id,
+        
+        -- Session counts per day (D0-D7) - optimized single pass aggregation
+        SUM(CASE WHEN days_since_install = 0 THEN 1 ELSE 0 END) AS sessions_cnt_d0,
+        SUM(CASE WHEN days_since_install = 1 THEN 1 ELSE 0 END) AS sessions_cnt_d1,
+        SUM(CASE WHEN days_since_install = 2 THEN 1 ELSE 0 END) AS sessions_cnt_d2,
+        SUM(CASE WHEN days_since_install = 3 THEN 1 ELSE 0 END) AS sessions_cnt_d3,
+        SUM(CASE WHEN days_since_install = 4 THEN 1 ELSE 0 END) AS sessions_cnt_d4,
+        SUM(CASE WHEN days_since_install = 5 THEN 1 ELSE 0 END) AS sessions_cnt_d5,
+        SUM(CASE WHEN days_since_install = 6 THEN 1 ELSE 0 END) AS sessions_cnt_d6,
+        SUM(CASE WHEN days_since_install = 7 THEN 1 ELSE 0 END) AS sessions_cnt_d7,
+        
+        -- Cumulative sessions
+        SUM(CASE WHEN days_since_install BETWEEN 0 AND 3 THEN 1 ELSE 0 END) AS sessions_cnt_d0_to_d3,
+        COUNT(*) AS sessions_cnt_d0_to_d7
+        
+    FROM user_activity
+    GROUP BY user_id
+)
+,user_charges AS (
+    SELECT 
+        c.user_id,
+        c.report_date,
+        c.rev_usd,
+        b.install_date,
+        DATEDIFF(c.report_date, b.install_date) AS days_since_install
+    FROM charge c
+    INNER JOIN base_users b ON c.user_id = b.user_id
+    WHERE DATEDIFF(c.report_date, b.install_date) BETWEEN 0 AND 7
+),
+first_purchase AS (
+    SELECT 
+        user_id,
+        MIN(days_since_install) AS days_to_first_purchase,
+        FIRST_VALUE(rev_usd) OVER (PARTITION BY user_id ORDER BY days_since_install ASC) AS first_purchase_amount,
+        MIN(days_since_install) AS first_purchase_day
+    FROM user_charges
+    GROUP BY user_id, rev_usd, days_since_install
+),
+daily_revenue AS (
+    SELECT 
+        user_id,
+        days_since_install,
+        SUM(rev_usd) AS daily_revenue,
+        COUNT(*) AS daily_purchase_count
+    FROM user_charges
+    GROUP BY user_id, days_since_install
+)
+,purchase_features AS (
+    SELECT 
+        COALESCE(fp.user_id, dr.user_id) AS user_id,
+        -- First purchase metrics
+        fp.days_to_first_purchase,
+        fp.first_purchase_amount,
+        fp.first_purchase_day,
+        -- Daily revenue (D0-D7)
+        MAX(CASE WHEN dr.days_since_install = 0 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d0,
+        MAX(CASE WHEN dr.days_since_install = 1 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d1,
+        MAX(CASE WHEN dr.days_since_install = 2 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d2,
+        MAX(CASE WHEN dr.days_since_install = 3 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d3,
+        MAX(CASE WHEN dr.days_since_install = 4 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d4,
+        MAX(CASE WHEN dr.days_since_install = 5 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d5,
+        MAX(CASE WHEN dr.days_since_install = 6 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d6,
+        MAX(CASE WHEN dr.days_since_install = 7 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d7,
+        -- Purchase counts (D0-D7)
+        SUM(CASE WHEN dr.days_since_install BETWEEN 0 AND 7 THEN dr.daily_purchase_count ELSE 0 END) AS purchase_cnt_d0_to_d7,
+        -- Cumulative revenue (D0-D7)
+        SUM(CASE WHEN dr.days_since_install BETWEEN 0 AND 7 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d0_to_d7
+    FROM first_purchase fp
+    FULL OUTER JOIN daily_revenue dr USING(user_id)
+    GROUP BY 
+        COALESCE(fp.user_id, dr.user_id),
+        fp.days_to_first_purchase,
+        fp.first_purchase_amount,
+        fp.first_purchase_day
+)
+,daily_retention AS (
+    SELECT 
+        user_id,
+        days_since_install,
+        1 AS is_active
+    FROM user_activity
+    GROUP BY user_id, days_since_install
+    )
+,retention_features AS (
+    SELECT 
+        user_id,
+        MAX(CASE WHEN days_since_install = 1 THEN is_active ELSE 0 END) AS RR1,
+        MAX(CASE WHEN days_since_install = 2 THEN is_active ELSE 0 END) AS RR2,
+        MAX(CASE WHEN days_since_install = 3 THEN is_active ELSE 0 END) AS RR3
+    FROM daily_retention
+    GROUP BY user_id
+)
+,user_item_activity AS (
+    SELECT 
+        REGEXP_REPLACE(m.account_id, '^.*_', '') AS user_id,
+        m.item_id,
+        m.record_time,
+        m.flow_type,
+        b.install_date,
+        DATEDIFF(DATE(m.record_time), b.install_date) AS days_since_install,
+        ABS(m.after_quantity - m.before_quantity) AS quantity_change
+    FROM item m
+    INNER JOIN base_users b ON REGEXP_REPLACE(m.account_id, '^.*_', '') = b.user_id
+    WHERE DATEDIFF(DATE(m.record_time), b.install_date) BETWEEN 0 AND 7
+        AND m.item_id NOT IN ('-100', '-300', '110000')  -- Exclude money types
+),
+daily_item_aggregates AS (
+    SELECT 
+        user_id,
+        days_since_install,
+        SUM(CASE WHEN flow_type = 0 THEN quantity_change ELSE 0 END) AS items_gain,
+        SUM(CASE WHEN flow_type = 1 THEN quantity_change ELSE 0 END) AS items_spent
+    FROM user_item_activity
+    GROUP BY user_id, days_since_install
+)
+,item_features AS (
+    SELECT 
+        user_id,
+        
+        -- Items gained per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN items_gain ELSE 0 END) AS items_gain_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN items_gain ELSE 0 END) AS items_gain_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN items_gain ELSE 0 END) AS items_gain_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN items_gain ELSE 0 END) AS items_gain_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN items_gain ELSE 0 END) AS items_gain_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN items_gain ELSE 0 END) AS items_gain_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN items_gain ELSE 0 END) AS items_gain_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN items_gain ELSE 0 END) AS items_gain_d7,
+        
+        -- Items spent per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN items_spent ELSE 0 END) AS items_spent_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN items_spent ELSE 0 END) AS items_spent_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN items_spent ELSE 0 END) AS items_spent_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN items_spent ELSE 0 END) AS items_spent_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN items_spent ELSE 0 END) AS items_spent_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN items_spent ELSE 0 END) AS items_spent_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN items_spent ELSE 0 END) AS items_spent_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN items_spent ELSE 0 END) AS items_spent_d7,
+        
+        -- Cumulative totals (D0-D7)
+        SUM(items_gain) AS items_gain_d0_to_d7,
+        SUM(items_spent) AS items_spent_d0_to_d7
+        
+    FROM daily_item_aggregates
+    GROUP BY user_id
+)
+,user_money_activity AS (
+    SELECT 
+        REGEXP_REPLACE(m.account_id, '^.*_', '') AS user_id,
+        m.item_id,
+        m.record_time,
+        m.flow_type,
+        b.install_date,
+        DATEDIFF(DATE(m.record_time), b.install_date) AS days_since_install,
+        ABS(m.after_quantity - m.before_quantity) AS quantity_change
+    FROM money m
+    INNER JOIN base_users b ON REGEXP_REPLACE(m.account_id, '^.*_', '') = b.user_id
+    WHERE DATEDIFF(DATE(m.record_time), b.install_date) BETWEEN 0 AND 7
+        AND m.item_id IN ('-100', '-300', '110000')  -- Only money types
+),
+
+daily_money_aggregates AS (
+    SELECT 
+        user_id,
+        days_since_install,
+        
+        -- Vang (-100)
+        SUM(CASE WHEN item_id = '-100' AND flow_type = 0 THEN quantity_change ELSE 0 END) AS vang_gain,
+        SUM(CASE WHEN item_id = '-100' AND flow_type = 1 THEN quantity_change ELSE 0 END) AS vang_spent,
+        
+        -- Xu Khoa (-300)
+        SUM(CASE WHEN item_id = '-300' AND flow_type = 0 THEN quantity_change ELSE 0 END) AS xu_khoa_gain,
+        SUM(CASE WHEN item_id = '-300' AND flow_type = 1 THEN quantity_change ELSE 0 END) AS xu_khoa_spent,
+        
+        -- Xu Ga (110000)
+        SUM(CASE WHEN item_id = '110000' AND flow_type = 0 THEN quantity_change ELSE 0 END) AS xu_ga_gain,
+        SUM(CASE WHEN item_id = '110000' AND flow_type = 1 THEN quantity_change ELSE 0 END) AS xu_ga_spent
+        
+    FROM user_money_activity
+    GROUP BY user_id, days_since_install
+)
+,money_features AS (
+    SELECT 
+        user_id,
+        
+        -- Vang gained per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN vang_gain ELSE 0 END) AS vang_gain_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN vang_gain ELSE 0 END) AS vang_gain_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN vang_gain ELSE 0 END) AS vang_gain_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN vang_gain ELSE 0 END) AS vang_gain_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN vang_gain ELSE 0 END) AS vang_gain_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN vang_gain ELSE 0 END) AS vang_gain_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN vang_gain ELSE 0 END) AS vang_gain_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN vang_gain ELSE 0 END) AS vang_gain_d7,
+        
+        -- Vang spent per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN vang_spent ELSE 0 END) AS vang_spent_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN vang_spent ELSE 0 END) AS vang_spent_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN vang_spent ELSE 0 END) AS vang_spent_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN vang_spent ELSE 0 END) AS vang_spent_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN vang_spent ELSE 0 END) AS vang_spent_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN vang_spent ELSE 0 END) AS vang_spent_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN vang_spent ELSE 0 END) AS vang_spent_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN vang_spent ELSE 0 END) AS vang_spent_d7,
+        
+        -- Xu Khoa gained per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d7,
+        
+        -- Xu Khoa spent per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d7,
+        
+        -- Xu Ga gained per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d7,
+        
+        -- Xu Ga spent per day (D0-D7)
+        MAX(CASE WHEN days_since_install = 0 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d0,
+        MAX(CASE WHEN days_since_install = 1 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d1,
+        MAX(CASE WHEN days_since_install = 2 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d2,
+        MAX(CASE WHEN days_since_install = 3 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d3,
+        MAX(CASE WHEN days_since_install = 4 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d4,
+        MAX(CASE WHEN days_since_install = 5 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d5,
+        MAX(CASE WHEN days_since_install = 6 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d6,
+        MAX(CASE WHEN days_since_install = 7 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d7,
+        
+        -- Cumulative totals (D0-D7)
+        SUM(vang_gain) AS vang_gain_d0_to_d7,
+        SUM(vang_spent) AS vang_spent_d0_to_d7,
+        SUM(xu_khoa_gain) AS xu_khoa_gain_d0_to_d7,
+        SUM(xu_khoa_spent) AS xu_khoa_spent_d0_to_d7,
+        SUM(xu_ga_gain) AS xu_ga_gain_d0_to_d7,
+        SUM(xu_ga_spent) AS xu_ga_spent_d0_to_d7
+    FROM daily_money_aggregates
+    GROUP BY user_id
+)
+,user_lifetime_charges AS (
+    SELECT 
+        c.user_id,
+        c.report_date,
+        c.rev_usd,
+        b.install_date,
+        DATEDIFF(c.report_date, b.install_date) AS days_since_install
+    FROM charge c
+    INNER JOIN base_users b ON c.user_id = b.user_id
+    WHERE DATEDIFF(c.report_date, b.install_date) >= 0
+)
+,ltv_targets AS (
+    SELECT 
+        user_id,
+        -- Cumulative LTV at different time windows
+        SUM(CASE WHEN days_since_install <= 7 THEN rev_usd ELSE 0 END) AS ltv_d7,
+        SUM(CASE WHEN days_since_install <= 14 THEN rev_usd ELSE 0 END) AS ltv_d14,
+        SUM(CASE WHEN days_since_install <= 30 THEN rev_usd ELSE 0 END) AS ltv_d30,
+        SUM(CASE WHEN days_since_install <= 60 THEN rev_usd ELSE 0 END) AS ltv_d60,
+        SUM(CASE WHEN days_since_install <= 90 THEN rev_usd ELSE 0 END) AS ltv_d90,
+        SUM(CASE WHEN days_since_install <= 120 THEN rev_usd ELSE 0 END) AS ltv_d120,
+        SUM(CASE WHEN days_since_install <= 180 THEN rev_usd ELSE 0 END) AS ltv_d180
+    FROM user_lifetime_charges
+    GROUP BY user_id
+)
+SELECT 
+    bu.user_id,
+    bu.install_date,
+    -- Install Attribution
+    bu.media_source,
+    bu.campaign_id,
+    bu.country,
+    -- Session Metrics (counts only - duration removed since active_time is timestamp)
+    COALESCE(sf.sessions_cnt_d0, 0) AS sessions_cnt_d0,
+    COALESCE(sf.sessions_cnt_d1, 0) AS sessions_cnt_d1,
+    COALESCE(sf.sessions_cnt_d2, 0) AS sessions_cnt_d2,
+    COALESCE(sf.sessions_cnt_d3, 0) AS sessions_cnt_d3,
+    COALESCE(sf.sessions_cnt_d4, 0) AS sessions_cnt_d4,
+    COALESCE(sf.sessions_cnt_d5, 0) AS sessions_cnt_d5,
+    COALESCE(sf.sessions_cnt_d6, 0) AS sessions_cnt_d6,
+    COALESCE(sf.sessions_cnt_d7, 0) AS sessions_cnt_d7,
+    COALESCE(sf.sessions_cnt_d0_to_d3, 0) AS sessions_cnt_d0_to_d3,
+    COALESCE(sf.sessions_cnt_d0_to_d7, 0) AS sessions_cnt_d0_to_d7,
+    -- Retention Signals
+    COALESCE(rf.RR1, 0) AS RR1,
+    COALESCE(rf.RR2, 0) AS RR2,
+    COALESCE(rf.RR3, 0) AS RR3,
+    -- Item Usage (non-money items)
+    COALESCE(itf.items_gain_d0, 0) AS items_gain_d0,
+    COALESCE(itf.items_gain_d1, 0) AS items_gain_d1,
+    COALESCE(itf.items_gain_d2, 0) AS items_gain_d2,
+    COALESCE(itf.items_gain_d3, 0) AS items_gain_d3,
+    COALESCE(itf.items_gain_d4, 0) AS items_gain_d4,
+    COALESCE(itf.items_gain_d5, 0) AS items_gain_d5,
+    COALESCE(itf.items_gain_d6, 0) AS items_gain_d6,
+    COALESCE(itf.items_gain_d7, 0) AS items_gain_d7,
+    COALESCE(itf.items_gain_d0_to_d7, 0) AS items_gain_d0_to_d7,
+    COALESCE(itf.items_spent_d0, 0) AS items_spent_d0,
+    COALESCE(itf.items_spent_d1, 0) AS items_spent_d1,
+    COALESCE(itf.items_spent_d2, 0) AS items_spent_d2,
+    COALESCE(itf.items_spent_d3, 0) AS items_spent_d3,
+    COALESCE(itf.items_spent_d4, 0) AS items_spent_d4,
+    COALESCE(itf.items_spent_d5, 0) AS items_spent_d5,
+    COALESCE(itf.items_spent_d6, 0) AS items_spent_d6,
+    COALESCE(itf.items_spent_d7, 0) AS items_spent_d7,
+    COALESCE(itf.items_spent_d0_to_d7, 0) AS items_spent_d0_to_d7,
+    -- Money Usage: Vang
+    COALESCE(mf.vang_gain_d0, 0) AS vang_gain_d0,
+    COALESCE(mf.vang_gain_d1, 0) AS vang_gain_d1,
+    COALESCE(mf.vang_gain_d2, 0) AS vang_gain_d2,
+    COALESCE(mf.vang_gain_d3, 0) AS vang_gain_d3,
+    COALESCE(mf.vang_gain_d4, 0) AS vang_gain_d4,
+    COALESCE(mf.vang_gain_d5, 0) AS vang_gain_d5,
+    COALESCE(mf.vang_gain_d6, 0) AS vang_gain_d6,
+    COALESCE(mf.vang_gain_d7, 0) AS vang_gain_d7,
+    COALESCE(mf.vang_gain_d0_to_d7, 0) AS vang_gain_d0_to_d7,
+    COALESCE(mf.vang_spent_d0, 0) AS vang_spent_d0,
+    COALESCE(mf.vang_spent_d1, 0) AS vang_spent_d1,
+    COALESCE(mf.vang_spent_d2, 0) AS vang_spent_d2,
+    COALESCE(mf.vang_spent_d3, 0) AS vang_spent_d3,
+    COALESCE(mf.vang_spent_d4, 0) AS vang_spent_d4,
+    COALESCE(mf.vang_spent_d5, 0) AS vang_spent_d5,
+    COALESCE(mf.vang_spent_d6, 0) AS vang_spent_d6,
+    COALESCE(mf.vang_spent_d7, 0) AS vang_spent_d7,
+    COALESCE(mf.vang_spent_d0_to_d7, 0) AS vang_spent_d0_to_d7,
+    -- Money Usage: Xu Khoa
+    COALESCE(mf.xu_khoa_gain_d0, 0) AS xu_khoa_gain_d0,
+    COALESCE(mf.xu_khoa_gain_d1, 0) AS xu_khoa_gain_d1,
+    COALESCE(mf.xu_khoa_gain_d2, 0) AS xu_khoa_gain_d2,
+    COALESCE(mf.xu_khoa_gain_d3, 0) AS xu_khoa_gain_d3,
+    COALESCE(mf.xu_khoa_gain_d4, 0) AS xu_khoa_gain_d4,
+    COALESCE(mf.xu_khoa_gain_d5, 0) AS xu_khoa_gain_d5,
+    COALESCE(mf.xu_khoa_gain_d6, 0) AS xu_khoa_gain_d6,
+    COALESCE(mf.xu_khoa_gain_d7, 0) AS xu_khoa_gain_d7,
+    COALESCE(mf.xu_khoa_gain_d0_to_d7, 0) AS xu_khoa_gain_d0_to_d7,
+    COALESCE(mf.xu_khoa_spent_d0, 0) AS xu_khoa_spent_d0,
+    COALESCE(mf.xu_khoa_spent_d1, 0) AS xu_khoa_spent_d1,
+    COALESCE(mf.xu_khoa_spent_d2, 0) AS xu_khoa_spent_d2,
+    COALESCE(mf.xu_khoa_spent_d3, 0) AS xu_khoa_spent_d3,
+    COALESCE(mf.xu_khoa_spent_d4, 0) AS xu_khoa_spent_d4,
+    COALESCE(mf.xu_khoa_spent_d5, 0) AS xu_khoa_spent_d5,
+    COALESCE(mf.xu_khoa_spent_d6, 0) AS xu_khoa_spent_d6,
+    COALESCE(mf.xu_khoa_spent_d7, 0) AS xu_khoa_spent_d7,
+    COALESCE(mf.xu_khoa_spent_d0_to_d7, 0) AS xu_khoa_spent_d0_to_d7,
+    -- Money Usage: Xu Ga
+    COALESCE(mf.xu_ga_gain_d0, 0) AS xu_ga_gain_d0,
+    COALESCE(mf.xu_ga_gain_d1, 0) AS xu_ga_gain_d1,
+    COALESCE(mf.xu_ga_gain_d2, 0) AS xu_ga_gain_d2,
+    COALESCE(mf.xu_ga_gain_d3, 0) AS xu_ga_gain_d3,
+    COALESCE(mf.xu_ga_gain_d4, 0) AS xu_ga_gain_d4,
+    COALESCE(mf.xu_ga_gain_d5, 0) AS xu_ga_gain_d5,
+    COALESCE(mf.xu_ga_gain_d6, 0) AS xu_ga_gain_d6,
+    COALESCE(mf.xu_ga_gain_d7, 0) AS xu_ga_gain_d7,
+    COALESCE(mf.xu_ga_gain_d0_to_d7, 0) AS xu_ga_gain_d0_to_d7,
+    COALESCE(mf.xu_ga_spent_d0, 0) AS xu_ga_spent_d0,
+    COALESCE(mf.xu_ga_spent_d1, 0) AS xu_ga_spent_d1,
+    COALESCE(mf.xu_ga_spent_d2, 0) AS xu_ga_spent_d2,
+    COALESCE(mf.xu_ga_spent_d3, 0) AS xu_ga_spent_d3,
+    COALESCE(mf.xu_ga_spent_d4, 0) AS xu_ga_spent_d4,
+    COALESCE(mf.xu_ga_spent_d5, 0) AS xu_ga_spent_d5,
+    COALESCE(mf.xu_ga_spent_d6, 0) AS xu_ga_spent_d6,
+    COALESCE(mf.xu_ga_spent_d7, 0) AS xu_ga_spent_d7,
+    COALESCE(mf.xu_ga_spent_d0_to_d7, 0) AS xu_ga_spent_d0_to_d7,
+    -- Purchase Behavior
+    pf.days_to_first_purchase,
+    pf.first_purchase_amount,
+    pf.first_purchase_day,
+    COALESCE(pf.purchase_cnt_d0_to_d7, 0) AS purchase_cnt_d0_to_d7,
+    COALESCE(pf.total_revenue_d0, 0) AS total_revenue_d0,
+    COALESCE(pf.total_revenue_d1, 0) AS total_revenue_d1,
+    COALESCE(pf.total_revenue_d2, 0) AS total_revenue_d2,
+    COALESCE(pf.total_revenue_d3, 0) AS total_revenue_d3,
+    COALESCE(pf.total_revenue_d4, 0) AS total_revenue_d4,
+    COALESCE(pf.total_revenue_d5, 0) AS total_revenue_d5,
+    COALESCE(pf.total_revenue_d6, 0) AS total_revenue_d6,
+    COALESCE(pf.total_revenue_d7, 0) AS total_revenue_d7,
+    COALESCE(pf.total_revenue_d0_to_d7, 0) AS total_revenue_d0_to_d7,
+    -- Target Variables (LTV)
+    COALESCE(ltv.ltv_d7, 0) AS ltv_d7,
+    COALESCE(ltv.ltv_d14, 0) AS ltv_d14,
+    COALESCE(ltv.ltv_d30, 0) AS ltv_d30,
+    COALESCE(ltv.ltv_d60, 0) AS ltv_d60,
+    COALESCE(ltv.ltv_d90, 0) AS ltv_d90,
+    COALESCE(ltv.ltv_d120, 0) AS ltv_d120,
+    COALESCE(ltv.ltv_d180, 0) AS ltv_d180
+FROM base_users bu
+LEFT JOIN session_features sf ON bu.user_id = sf.user_id
+LEFT JOIN retention_features rf ON bu.user_id = rf.user_id
+LEFT JOIN item_features itf ON bu.user_id = itf.user_id
+LEFT JOIN money_features mf ON bu.user_id = mf.user_id
+LEFT JOIN purchase_features pf ON bu.user_id = pf.user_id
+LEFT JOIN ltv_targets ltv ON bu.user_id = ltv.user_id
+-- Filter: Only include users with mature cohorts (e.g., installed at least 180 days ago)
+WHERE DATEDIFF(CURRENT_DATE(), bu.install_date) >= 180

@@ -1,0 +1,126 @@
+{# Rolling Forecast: Market-based consolidation template
+   
+   Variables:
+   - market_type: 'single', 'sea', or 'multi'
+   - game_id: Game identifier (optional)
+   - country_code: Country code (for single market)
+   - countries: List of countries (for multi market)
+#}
+{% import 'macros.sql' as macros %}
+
+-- Rolling Forecast: {{ market_type|upper }} Market Consolidation
+{% if market_type == 'single' %}
+-- Single Market ({{ country_code|default('TH') }})
+-- Games: slth, gnoth
+{% elif market_type == 'sea' %}
+-- SEA Market (Aggregate + Optional Countries)
+-- Games: pwmsea, omgthai
+{% elif market_type == 'multi' %}
+-- Multi-Country Market
+-- Games: cft, fw2, mlb, mts, td, cloudsongsea, l2m
+{% endif %}
+
+WITH active_retention AS (
+    SELECT
+        a.report_date,
+        a.game_id,
+        {% if market_type == 'single' %}
+        '{{ country_code|default("TH") }}' as country,
+        {% elif market_type == 'sea' %}
+        COALESCE(a.country_code, 'SEA') as country,
+        {% else %}
+        a.country_code as country,
+        {% endif %}
+        SUM(a.installs) as Install,
+        SUM(a.nru) as NRU,
+        SUM(r.nru1) as NRU1,
+        SUM(r.nru7) as NRU7,
+        SUM(a.dau) as DAU,
+        SUM(a.pu) as PU,
+        SUM(a.npu) as NPU
+    FROM active a
+    LEFT JOIN retention r
+        ON a.report_date = r.report_date
+        AND a.country_code = r.country_code
+    {% if market_type == 'single' %}
+    WHERE a.country_code = '{{ country_code|default("TH") }}'
+    {% elif market_type == 'multi' and countries %}
+    WHERE a.country_code IN ({{ countries|map('quote')|join(', ') }})
+    {% endif %}
+    GROUP BY 
+        a.report_date, 
+        a.game_id
+        {% if market_type != 'single' %}, a.country_code{% endif %}
+),
+
+charge_aggregated AS (
+    SELECT
+        c.report_date,
+        c.game_id,
+        {% if market_type == 'single' %}
+        '{{ country_code|default("TH") }}' as country,
+        {% elif market_type == 'sea' %}
+        COALESCE(c.country_code, 'SEA') as country,
+        {% else %}
+        c.country_code as country,
+        {% endif %}
+        -- Revenue already in USD from game_health_check diagnostic pipeline
+        SUM(c.revenue) as rev_usd
+    FROM charge c
+    {% if market_type == 'single' %}
+    WHERE c.country_code = '{{ country_code|default("TH") }}'
+    {% elif market_type == 'multi' and countries %}
+    WHERE c.country_code IN ({{ countries|map('quote')|join(', ') }})
+    {% endif %}
+    GROUP BY 
+        c.report_date, 
+        c.game_id
+        {% if market_type != 'single' %}, c.country_code{% endif %}
+)
+
+-- Final output
+SELECT
+    ar.report_date,
+    ar.game_id,
+    ar.country,
+    ar.Install,
+    ar.NRU,
+    CASE WHEN ar.NRU > 0 THEN ROUND(ar.NRU1 * 100.0 / ar.NRU, 2) ELSE 0 END as RR01,
+    CASE WHEN ar.NRU > 0 THEN ROUND(ar.NRU7 * 100.0 / ar.NRU, 2) ELSE 0 END as RR07,
+    ar.DAU,
+    ar.PU,
+    ar.NPU,
+    COALESCE(cc.rev_usd, 0) as rev_usd,
+    CASE WHEN ar.DAU > 0 THEN ROUND(COALESCE(cc.rev_usd, 0) / ar.DAU, 2) ELSE 0 END as ARPDAU,
+    CASE WHEN ar.PU > 0 THEN ROUND(COALESCE(cc.rev_usd, 0) / ar.PU, 2) ELSE 0 END as ARPPU
+FROM active_retention ar
+LEFT JOIN charge_aggregated cc
+    ON ar.report_date = cc.report_date
+    AND ar.game_id = cc.game_id
+    AND ar.country = cc.country
+{% if market_type == 'sea' %}
+-- SEA Market: Include both aggregate and individual countries
+UNION ALL
+SELECT
+    ar.report_date,
+    ar.game_id,
+    'SEA' as country,
+    SUM(ar.Install) as Install,
+    SUM(ar.NRU) as NRU,
+    CASE WHEN SUM(ar.NRU) > 0 THEN ROUND(SUM(ar.NRU1) * 100.0 / SUM(ar.NRU), 2) ELSE 0 END as RR01,
+    CASE WHEN SUM(ar.NRU) > 0 THEN ROUND(SUM(ar.NRU7) * 100.0 / SUM(ar.NRU), 2) ELSE 0 END as RR07,
+    SUM(ar.DAU) as DAU,
+    SUM(ar.PU) as PU,
+    SUM(ar.NPU) as NPU,
+    SUM(COALESCE(cc.rev_usd, 0)) as rev_usd,
+    CASE WHEN SUM(ar.DAU) > 0 THEN ROUND(SUM(COALESCE(cc.rev_usd, 0)) / SUM(ar.DAU), 2) ELSE 0 END as ARPDAU,
+    CASE WHEN SUM(ar.PU) > 0 THEN ROUND(SUM(COALESCE(cc.rev_usd, 0)) / SUM(ar.PU), 2) ELSE 0 END as ARPPU
+FROM active_retention ar
+LEFT JOIN charge_aggregated cc
+    ON ar.report_date = cc.report_date
+    AND ar.game_id = cc.game_id
+    AND ar.country = cc.country
+WHERE ar.country != 'SEA'
+GROUP BY ar.report_date, ar.game_id
+{% endif %}
+ORDER BY report_date, country

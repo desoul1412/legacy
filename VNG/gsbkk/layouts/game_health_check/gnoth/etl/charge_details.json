@@ -1,0 +1,18 @@
+{
+  "description": "GNOTH Game Health Check - Extract transaction-level charge details",
+  "inputSources": [
+    {
+      "name": "charge_data",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "sqlTemplate": "templates/game_health_check/gnoth/charge_details.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/game_health_check/gnoth/charge_details/{logDate}",
+      "format": "parquet"
+    }
+  ]
+}

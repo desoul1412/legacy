@@ -1,0 +1,21 @@
+{
+  "description": "SensorTower: Top Games ETL → Standardized",
+  "comment": "Standardizes top games data with consistent schema and data types",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/top_games/{logDate}"
+    }
+  ],
+  "sqlTemplate": "templates/sensortower/std_top_games.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/top_games/month={logDate}-01",
+      "format": "parquet",
+      "mode": "overwrite"
+    }
+  ]
+}

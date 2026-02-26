@@ -1,0 +1,25 @@
+{
+  "description": "Example: Read data from Google Sheets as input source",
+  "comment": "This layout shows how to read from Google Sheets, transform columns, and write to PostgreSQL",
+  "inputSources": [
+    {
+      "name": "monthly_rfc_2026",
+      "type": "gsheet",
+      "sheet_id": "YOUR_GOOGLE_SHEET_ID_HERE",
+      "range": "Sheet1!A2:AJ",
+      "comment": "Range format: 'WorksheetName!CellRange' - A2:AJ skips header row"
+    }
+  ],
+  "sqlTemplate": "templates/examples/gsheet_transform.sql.j2",
+  "outputs": [
+    {
+      "name": "postgres",
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.gsheet_import_data",
+      "mode": "overwrite",
+      "add_updated_at": true,
+      "comment": "add_updated_at adds timestamp column (optional, defaults to false)"
+    }
+  ]
+}

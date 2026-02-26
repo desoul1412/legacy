@@ -1,0 +1,30 @@
+WITH dedup AS (
+    SELECT DISTINCT
+        app_id,
+        date,
+        country,
+        release_date,
+        downloads,
+        revenue
+    FROM daily_performance LEFT JOIN dim_app_variants USING(app_id, country)
+)
+,calculated_months AS (
+    SELECT 
+        app_id,
+        country,
+        downloads,
+        revenue,
+        -- Calculate days elapsed and divide by 30 to get the "month" block
+        -- We use FLOOR(...) + 1 so that Day 0-29 = Month 1, Day 30-59 = Month 2
+        FLOOR(DATEDIFF(date, release_date) / 30) + 1 AS month_number
+    FROM dedup
+)
+SELECT 
+    app_id,
+    country,
+    month_number,
+    SUM(downloads) AS downloads,
+    SUM(revenue) AS revenue
+FROM calculated_months
+GROUP BY 1,2,3
+ORDER BY 1,2,3

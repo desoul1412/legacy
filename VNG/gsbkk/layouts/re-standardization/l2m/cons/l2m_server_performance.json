@@ -1,0 +1,34 @@
+{
+  "description": "L2M Server Performance CONS: Aggregate active/revenue by server (read from STD active + ETL recharge)",
+  "comment": "Consolidates server-level performance metrics combining active users and revenue",
+  "inputSources": [
+    {
+      "name": "active_tbl",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/std/active/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "revenue_tbl",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/recharge/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "role_profile",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "sqlTemplate": "templates/re-standardization/l2m/role_profile_for_nru.sql.j2",
+      "tableKey": "role_profile"
+    }
+  ],
+  "sqlTemplate": "templates/re-standardization/l2m/server_performance.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.l2m_server_performance",
+      "deleteCondition": "date = DATE '{logDate}'"
+    }
+  ]
+}

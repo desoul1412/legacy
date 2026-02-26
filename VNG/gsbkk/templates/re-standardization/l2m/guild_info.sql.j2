@@ -1,0 +1,34 @@
+-- L2M Guild/Clan Info - Extract latest clan membership
+-- Source: etl_increase_money where entity_id = '900000001' (clan currency)
+-- Window function to get latest record per user+role
+WITH data AS (
+    SELECT DISTINCT 
+        actor_str3 AS user_id, 
+        actor_id AS role_id, 
+        actor_name AS role_name, 
+        actor_world AS server_id, 
+        actor_level AS role_level, 
+        FIRST_VALUE(actor_str2) OVER (PARTITION BY actor_str3, actor_id ORDER BY logtime DESC) AS clan_name, 
+        FIRST_VALUE(actor_guild) OVER (PARTITION BY actor_str3, actor_id ORDER BY logtime DESC) AS clan_id,
+        FIRST_VALUE(ds) OVER (PARTITION BY actor_str3, actor_id ORDER BY logtime DESC) AS last_log_record
+    FROM iceberg.l2m.etl_increase_money 
+    WHERE entity_id = '900000001' 
+        AND DATE(logtime + INTERVAL '7' HOUR) >= CURRENT_DATE - INTERVAL '8' DAY
+        AND actor_guild != '0'
+),
+rn AS (
+    SELECT *, 
+        ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY role_level DESC) AS rn 
+    FROM data
+)
+SELECT 
+    user_id,
+    role_id,
+    role_name,
+    server_id,
+    role_level,
+    clan_name,
+    clan_id,
+    last_log_record
+FROM rn 
+WHERE rn = 1

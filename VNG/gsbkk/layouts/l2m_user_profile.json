@@ -1,0 +1,18 @@
+{
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "query": "(SELECT * FROM l2m.mkt_user_profile WHERE date = '{logDate}') as tmp"
+    }
+  ],
+  "sqlTemplate": "templates/l2m/user_profile.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/mf/{logDate}",
+      "numPartitions": 4
+    }
+  ]
+}

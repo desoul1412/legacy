@@ -1,0 +1,29 @@
+{
+  "description": "L2M Item Gain CONS: Read from ETL, enrich with user profile, write to PostgreSQL",
+  "comment": "Consolidates item gain data enriched with user country information",
+  "inputSources": [
+    {
+      "name": "item_data",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/item_gain/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "user_profile",
+      "type": "jdbc",
+      "connection": "GDS_POSTGRES",
+      "query": "SELECT user_id, CASE WHEN country_code IN ('TH','VN','ID','PH','SG','MY') THEN country_code ELSE 'Others' END AS country_code FROM public.mkt_user_profile"
+    }
+  ],
+  "sqlTemplate": "templates/re-standardization/l2m/item_gain_cons.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.l2m_item_gain",
+      "format": "parquet",
+      "mode": "append",
+      "deleteCondition": "report_date = DATE '{logDate}'"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+SELECT DISTINCT
+    unified_app_id,
+    app_id,
+    os,
+    canonical_country AS country,
+    MIN(publisher_name) AS publisher_name,
+    MIN(publisher_country) AS publisher_country,
+    MIN(icon_url) AS icon_url,
+    CAST(MIN(country_release_date) AS DATE) AS release_date
+FROM metadata
+GROUP BY 1,2,3,4

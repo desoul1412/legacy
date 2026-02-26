@@ -1,0 +1,27 @@
+{
+  "description": "SensorTower: Consolidated Daily Performance Report",
+  "comment": "Union all apps into a comprehensive daily performance report",
+  "inputSources": [
+    {
+      "name": "daily_performance",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/performance",
+      "format": "parquet"
+    },
+    {
+      "name": "dim_app_variants",
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "query": "SELECT DISTINCT app_id, country, release_date FROM test.dim_app_variants"
+    }
+  ],
+  "sqlTemplate": "templates/market_research/performance_3m.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.performance_3m",
+      "mode": "overwrite"
+    }
+  ]
+}

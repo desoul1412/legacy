@@ -1,0 +1,20 @@
+{
+  "description": "SensorTower: New Games ETL → Standardized",
+  "comment": "Standardizes new games data with consistent schema and data types",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/new_games/{logDate}"
+    }
+  ],
+  "sqlTemplate": "templates/sensortower/std_new_games.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/new_games/month={logDate}-01",
+      "format": "parquet"
+    }
+  ]
+}

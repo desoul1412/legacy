@@ -1,0 +1,6 @@
+-- Enrich item gain data with user country information
+SELECT 
+    i.*, 
+    COALESCE(u.country_code, 'Unknown') AS country_code 
+FROM item_data i 
+LEFT JOIN user_profile u ON i.user_id = u.user_id

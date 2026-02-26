@@ -1,0 +1,17 @@
+-- GNOTH Game Health Check: Retention data
+-- Extracts from GDS Postgres mkt.daily_user_retention
+SELECT 
+    game_id,
+    report_date,
+    media_source,
+    campaign_id,
+    country_code,
+    SUM(ruser01) as ruser01,
+    SUM(ruser03) as ruser03,
+    SUM(ruser07) as ruser07,
+    SUM(ruser14) as ruser14,
+    SUM(ruser21) as ruser21,
+    SUM(ruser30) as ruser30
+FROM mkt.daily_user_retention
+WHERE report_date IN ('{{logDate}}', DATE('{{logDate}}') - INTERVAL '1 day')
+GROUP BY game_id, report_date, media_source, campaign_id, country_code

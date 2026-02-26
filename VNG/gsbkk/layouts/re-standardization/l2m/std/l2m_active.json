@@ -1,0 +1,55 @@
+{
+  "description": "L2M Active Users STD: Reuse ALL economy data - login/logout/recharge/item/money (ZERO duplicate Trino scans)",
+  "inputSources": [
+    {
+      "name": "login",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/active_login/{logDate}"
+    },
+    {
+      "name": "logout",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/active_logout/{logDate}"
+    },
+    {
+      "name": "recharge",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/recharge/{logDate}"
+    },
+    {
+      "name": "item_gain",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/item_gain/{logDate}"
+    },
+    {
+      "name": "item_spend",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/item_spend/{logDate}"
+    },
+    {
+      "name": "money_gain",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/money_gain/{logDate}"
+    },
+    {
+      "name": "money_spend",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/money_spend/{logDate}"
+    }
+  ],
+  "sqlTemplate": "templates/re-standardization/l2m/active_std.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/std/active/{logDate}",
+      "format": "parquet"
+    }
+  ]
+}

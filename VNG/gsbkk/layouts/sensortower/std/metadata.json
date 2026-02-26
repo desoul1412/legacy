@@ -1,0 +1,21 @@
+{
+  "description": "SensorTower: Metadata ETL → Standardized",
+  "comment": "Standardizes app metadata with consistent schema",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "parquet",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/metadata/{logDate}"
+    }
+  ],
+  "sqlTemplate": "templates/sensortower/std_metadata.sql.j2",
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/metadata/{logDate}",
+      "format": "parquet",
+      "numPartitions": 8
+    }
+  ]
+}

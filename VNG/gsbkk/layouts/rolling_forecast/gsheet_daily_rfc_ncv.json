@@ -1,0 +1,26 @@
+{
+    "description": "Daily Rolling Forecast: Read daily RFC data from Google Sheets and write to PostgreSQL",
+    "comment": "This layout reads from 'Daily Overall' sheet and stores in rfc_daily table with append mode",
+    "inputSources": [
+        {
+            "name": "daily_rfc",
+            "type": "gsheet",
+            "sheet_id": "1qp3fB8yoqFE1r3zmqkgh_9xXbf4MyOOBgMEWTVu7FEQ",
+            "range": "Daily Overall!A2:V",
+            "comment": "Daily RFC data range starting from row 2 (skips header)"
+        }
+    ],
+    "sqlTemplate": "templates/rolling_forecast/gsheet_daily_rfc.sql.j2",
+    "outputs": [
+        {
+            "name": "postgres",
+            "type": "jdbc",
+            "connection": "TSN_POSTGRES",
+            "table": "public.rfc_daily_ncv",
+            "mode": "append",
+            "add_updated_at": true,
+            "deleteCondition": "game LIKE '%Lineage%' AND ( date IS NULL OR game IS NULL OR EXTRACT(YEAR FROM date) = 2026)",
+            "comment": "Append mode with delete condition for idempotent updates"
+        }
+    ]
+}

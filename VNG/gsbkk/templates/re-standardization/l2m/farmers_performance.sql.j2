@@ -1,0 +1,10 @@
+-- L2M Farmers Performance - User snapshot by farmer type
+-- Schema: user_id, level, source
+
+SELECT DISTINCT
+    a.user_id,
+    COALESCE(a.level, 0) AS level,
+    COALESCE(f.user_type, 'normal') AS source
+FROM active_data a
+LEFT JOIN farmers f USING(user_id)
+WHERE a.active_date = CAST('{{logDate}}' AS DATE)

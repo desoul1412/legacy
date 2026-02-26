@@ -1,0 +1,27 @@
+{
+  "description": "SensorTower: Metadata ETL → Standardized",
+  "comment": "Standardizes dim apps with consistent schema",
+  "inputSources": [
+    {
+      "name": "metadata",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/metadata/{logDate}-01",
+      "format": "parquet"
+    },
+    {
+      "name": "game_tags",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/game_tags/{logDate}-01",
+      "format": "parquet"
+    }
+  ],
+  "sqlTemplate": "templates/market_research/dim_app_variants.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "test.dim_app_variants",
+      "mode": "append"
+    }
+  ]
+}

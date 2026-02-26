@@ -1,0 +1,42 @@
+{# Google Sheet Column Transformation Example
+   
+   IMPORTANT: Column names with spaces must be escaped with backticks (`)
+   Column names are case-sensitive
+   
+   Example Google Sheet columns:
+   - Game
+   - Product Group
+   - Gross Rev - Annual KPI
+   - Profit - Annual KPI
+   - MAU - Annual KPI
+   - Gross Rev - RFC
+#}
+
+SELECT
+    `Game`,
+    `Product Group`,
+    `Market`,
+    `Team`,
+    `Month`,
+    `Genre`,
+    `Gross Rev - Annual KPI` as gross_rev_annual,
+    `Profit - Annual KPI` as profit_annual,
+    `MAU - Annual KPI` as mau_annual,
+    `Gross Rev - RFC` as gross_rev_rfc,
+    `Profit - RFC` as profit_rfc,
+    `MAU - RFC` as mau_rfc,
+    `Gross Rev - Actual` as gross_rev_actual,
+    `Profit - Actual` as profit_actual,
+    `MAU - Actual` as mau_actual,
+    `MPU - RFC` as mpu_rfc,
+    `MPU - Actual` as mpu_actual
+FROM monthly_rfc_2026
+ORDER BY `Month` DESC
+
+{# 
+NOTES:
+1. Use backticks (`) for column names with spaces: `Gross Rev - Annual KPI`
+2. Column names are case-sensitive: `Game` is different from `game`
+3. Use AS to rename columns to PostgreSQL-friendly names (lowercase, no spaces)
+4. Can add WHERE clauses, JOINs, etc. as needed
+#}

@@ -1,0 +1,20 @@
+{
+  "description": "SensorTower: Raw Metadata → ETL (Parquet)",
+  "comment": "Converts raw app metadata JSON to parquet format for efficient processing",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "file",
+      "format": "json",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/metadata/{logDate}-01"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/metadata/{logDate}-01",
+      "format": "parquet",
+      "numPartitions": 4
+    }
+  ]
+}

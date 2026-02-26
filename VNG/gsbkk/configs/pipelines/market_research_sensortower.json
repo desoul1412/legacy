@@ -1,0 +1,142 @@
+{
+  "pipeline_name": "market_research_sensortower",
+  "description": "Comprehensive SensorTower data extraction for new and top games",
+  
+  "api": {
+    "name": "sensortower",
+    "token_env": "SENSOR_TOWER_API_TOKEN",
+    "endpoints": {
+      "new_games": {
+        "platforms": ["android", "ios"],
+        "categories": {
+          "ios": "6014",
+          "android": "game"
+        },
+        "batch_size": 100,
+        "max_workers": 3
+      },
+      "top_games": {
+        "category": "6014",
+        "measure": "revenue",
+        "device_type": "total",
+        "limit": 1000,
+        "countries": ["TW", "SG", "MY", "MO", "KR", "JP", "HK", "CN", "VN", "TH", "PH", "ID", "US", "SA", "IN", "AE", "QA", "OM", "BH", "KW"]
+      },
+      "performance": {
+        "batch_size": 100,
+        "max_workers": 3,
+        "countries": ["TW", "SG", "MY", "MO", "KR", "JP", "HK", "CN", "VN", "TH", "PH", "ID", "US"]
+      }
+    }
+  },
+  
+  "extraction": {
+    "source": "sensortower_api",
+    "type": "new_games",
+    "date_field": "log_date",
+    "incremental": true
+  },
+  
+  "raw": {
+    "output": {
+      "type": "hadoop",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/new_games",
+      "format": "parquet",
+      "mode": "append",
+      "partition_by": ["os", "month"]
+    }
+  },
+  
+  "etl": {
+    "transformations": [
+      {
+        "name": "normalize_columns",
+        "columns": {
+          "app_id": {"type": "string"},
+          "unified_app_id": {"type": "string"},
+          "name": {"type": "string"},
+          "publisher_name": {"type": "string"},
+          "publisher_country": {"type": "string"},
+          "os": {"type": "string"},
+          "icon_url": {"type": "string"},
+          "store_url": {"rename": "url", "type": "string"},
+          "Free": {"rename": "free", "type": "boolean"},
+          "active": {"type": "boolean"},
+          "Game Genre": {"rename": "game_genre", "type": "string"},
+          "Game Sub-genre": {"rename": "game_sub_genre", "type": "string"},
+          "Game Art Style": {"rename": "game_art_style", "type": "string"},
+          "Game Theme": {"rename": "game_theme", "type": "string"},
+          "IP: Corporate Parent": {"rename": "corporate_parent", "type": "string"},
+          "country_release_date": {"rename": "release_date", "type": "date"},
+          "in_app_purchases": {"type": "boolean"},
+          "rating": {"type": "double"},
+          "Revenue First 30 Days (WW)": {"rename": "revenue_first_month", "type": "double"},
+          "country_code": {"rename": "country", "type": "string"},
+          "month": {"type": "date"},
+          "downloads": {"type": "integer"},
+          "revenue": {"type": "double"}
+        }
+      },
+      {
+        "name": "add_metadata",
+        "columns": {
+          "load_date": {"func": "current_date"},
+          "data_source": {"func": "lit", "value": "sensortower"}
+        }
+      }
+    ],
+    "output": {
+      "type": "hadoop",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/new_games",
+      "format": "parquet",
+      "mode": "append",
+      "partition_by": ["os", "month"]
+    }
+  },
+  
+  "std": {
+    "transformations": [
+      {
+        "name": "standardize_schema",
+        "columns": {
+          "app_id": {"type": "string"},
+          "unified_app_id": {"type": "string"},
+          "app_name": {"rename": "name", "type": "string"},
+          "publisher": {"rename": "publisher_name", "type": "string"},
+          "country": {"type": "string"},
+          "os_platform": {"rename": "os", "type": "string"},
+          "genre": {"rename": "game_genre", "type": "string"},
+          "sub_genre": {"rename": "game_sub_genre", "type": "string"},
+          "release_date": {"type": "date"},
+          "downloads": {"type": "integer"},
+          "revenue_usd": {"rename": "revenue", "type": "double"},
+          "rating": {"type": "double"},
+          "report_month": {"rename": "month", "type": "date"}
+        }
+      }
+    ],
+    "output": {
+      "type": "hadoop",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/std/new_games",
+      "format": "parquet",
+      "mode": "overwrite",
+      "partition_by": ["report_month", "os_platform"]
+    }
+  },
+  
+  "postgres": {
+    "connection": {
+      "host": "${TSN_POSTGRES_HOST}",
+      "port": "${TSN_POSTGRES_PORT}",
+      "database": "sensortower",
+      "user": "${TSN_POSTGRES_USER}",
+      "password": "${TSN_POSTGRES_PASSWORD}"
+    },
+    "table": "public.new_games",
+    "mode": "append",
+    "write_options": {
+      "batchsize": 10000,
+      "isolation_level": "READ_COMMITTED"
+    }
+  }
+}

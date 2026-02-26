@@ -1,0 +1,52 @@
+{# Daily Rolling Forecast SQL Template
+   
+   Maps Google Sheet columns to PostgreSQL rfc_daily table schema
+   Column names with spaces must be escaped with backticks (`)
+   
+   Google Sheet columns (Daily Overall):
+   - Game, Date, Install, NRU, RR1, DAU, PU, NPU, Rev, PR, ARPPU, Cost
+   - RFC Install, RFC NRU, RFC RR1, RFC DAU, RFC PU, RFC NPU, RFC Rev, RFC PR, RFC ARPPU
+   - Month
+   
+   PostgreSQL columns (rfc_daily table):
+   - game, date, install, nru, rr1, dau, pu, npu, rev, pr, arppu, cost
+   - rfc_install, rfc_nru, rfc_rr1, rfc_dau, rfc_pu, rfc_npu, rfc_rev, rfc_pr, rfc_arppu
+   - month, updated_at (auto-added)
+#}
+
+SELECT
+    `Game` as game,
+    CAST(`Date` AS DATE) as date,
+    CAST(`Install` AS DOUBLE) as install,
+    CAST(`NRU` AS DOUBLE) as nru,
+    CAST(`RR1` AS DOUBLE) as rr1,
+    CAST(`DAU` AS DOUBLE) as dau,
+    CAST(`PU` AS DOUBLE) as pu,
+    CAST(`NPU` AS DOUBLE) as npu,
+    CAST(`Rev` AS DOUBLE) as rev,
+    CAST(`PR` AS DOUBLE) as pr,
+    CAST(`ARPPU` AS DOUBLE) as arppu,
+    CAST(`Cost` AS DOUBLE) as cost,
+    CAST(`RFC Install` AS DOUBLE) as rfc_install,
+    CAST(`RFC NRU` AS DOUBLE) as rfc_nru,
+    CAST(`RFC RR1` AS DOUBLE) as rfc_rr1,
+    CAST(`RFC DAU` AS DOUBLE) as rfc_dau,
+    CAST(`RFC PU` AS DOUBLE) as rfc_pu,
+    CAST(`RFC NPU` AS DOUBLE) as rfc_npu,
+    CAST(`RFC Rev` AS DOUBLE) as rfc_rev,
+    CAST(`RFC PR` AS DOUBLE) as rfc_pr,
+    CAST(`RFC ARPPU` AS DOUBLE) as rfc_arppu,
+    CAST(`Month` AS DATE) as month
+FROM daily_rfc
+WHERE `Game` IS NOT NULL AND `Game` != ''
+  AND `Date` IS NOT NULL AND `Date` != ''
+ORDER BY `Date` DESC
+
+{# 
+NOTES:
+1. Backticks (`) are required for column names with spaces: `RFC Install`
+2. Column names are case-sensitive in Google Sheets
+3. AS renames columns to match PostgreSQL naming convention (lowercase, underscore)
+4. updated_at timestamp is automatically added by the add_updated_at flag
+5. deleteCondition ensures idempotent updates by removing duplicates before append
+#}

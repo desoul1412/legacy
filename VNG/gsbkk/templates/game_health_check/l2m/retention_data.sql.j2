@@ -1,0 +1,19 @@
+-- L2M Game Health Check: Retention data
+-- Extracts from GDS Postgres public.mkt_user_retention (L2M schema)
+SELECT 
+    game_id,
+    report_date,
+    media_source,
+    campaign_id,
+    country_code,
+    SUM(nur_mkt1) as ruser01,
+    SUM(nur_mkt3) as ruser03,
+    SUM(nur_mkt7) as ruser07,
+    SUM(nur_mkt14) as ruser14,
+    SUM(nur_mkt21) as ruser21,
+    SUM(nur_mkt30) as ruser30,
+    SUM(nur_mkt60) as ruser60,
+    SUM(nur_mkt90) as ruser90
+FROM mkt.daily_user_retention
+WHERE report_date IN ('{{logDate}}', DATE('{{logDate}}') - INTERVAL '1 day')
+GROUP BY game_id, report_date, media_source, campaign_id, country_code

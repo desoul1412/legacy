@@ -1,0 +1,10 @@
+-- Standardized schema for daily performance metrics
+SELECT
+    CAST(d AS timestamp) AS date,
+    CAST(aid AS string) AS app_id,
+    CAST(COALESCE(c, cc) AS string) AS country,
+    CAST(COALESCE(u, au+iu) AS double) AS downloads,
+    CAST(COALESCE(r, ir+ar) / 100 AS double) AS revenue
+FROM source_data
+WHERE aid IS NOT NULL
+  AND d IS NOT NULL

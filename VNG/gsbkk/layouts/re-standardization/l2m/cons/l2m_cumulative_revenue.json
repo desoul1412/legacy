@@ -1,0 +1,29 @@
+{
+  "description": "L2M Cumulative Revenue CONS: Calculate running total from ETL recharge",
+  "comment": "Consolidates cumulative revenue metrics by joining daily recharge with previous state",
+  "inputSources": [
+    {
+      "name": "daily_revenue",
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/recharge/{logDate}",
+      "format": "parquet"
+    },
+    {
+      "name": "prev_state",
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "query": "SELECT user_id, server_id, total_rev, user_group FROM public.cum_rev WHERE ds = DATE '{logDate}' - INTERVAL '1' DAY"
+    }
+  ],
+  "sqlTemplate": "templates/re-standardization/l2m/cumulative_revenue.sql.j2",
+  "outputs": [
+    {
+      "type": "jdbc",
+      "connection": "TSN_POSTGRES",
+      "table": "public.cum_rev",
+      "format": "parquet",
+      "mode": "append",
+      "deleteCondition": "ds = DATE '{logDate}'"
+    }
+  ]
+}

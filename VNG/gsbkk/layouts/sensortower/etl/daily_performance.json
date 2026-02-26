@@ -1,0 +1,22 @@
+{
+    "description": "SensorTower: Raw Daily Performance → ETL (Parquet)",
+    "comment": "Converts raw daily performance metrics JSON to parquet format for efficient processing",
+
+    "inputSources": [
+        {
+            "name": "source_data",
+            "type": "file",
+            "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/daily_performance/month={logDate}-01",
+            "format": "json"
+        }
+    ],
+
+    "outputs": [
+        {
+            "type": "file",
+            "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/etl/performance/month={logDate}-01",
+            "format": "parquet",
+            "mode": "append"
+        }
+    ]
+}

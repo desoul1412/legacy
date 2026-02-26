@@ -1,0 +1,14 @@
+-- L2M Money Spend - Extract diamond spends by reason
+-- Entity filter: 9%2 (diamond currency)
+-- Server filter: %140% (production servers)
+SELECT
+    DATE '{{logDate}}' AS report_date,
+    actor_str3 AS user_id,
+    actor_world AS server_id,
+    log_detail_code AS reason_id,
+    SUM(use_num2) AS spend_amount
+FROM iceberg.l2m.etl_decrease_money
+WHERE actor_world LIKE '%140%'
+    AND DATE(ds) = DATE '{{logDate}}'
+    AND entity_id LIKE '9%2'
+GROUP BY actor_str3, actor_world, log_detail_code

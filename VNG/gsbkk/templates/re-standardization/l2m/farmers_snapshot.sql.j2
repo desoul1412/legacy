@@ -1,0 +1,46 @@
+-- L2M Farmers Detection - Identify bot/farmer accounts
+-- Criteria 1: Shared IPs with 10+ accounts (bot farms)
+-- Criteria 2: Level 1 accounts with item farming activity
+WITH cond_farmers AS (
+    SELECT data_str1, raw_date
+    FROM iceberg.l2m.etl_login
+    GROUP BY 1, 2
+    HAVING COUNT(DISTINCT actor_str3) >= 10
+),
+flagged_farmers AS (
+    -- IP-based farmers
+    SELECT DISTINCT actor_str3
+    FROM iceberg.l2m.etl_login
+    JOIN cond_farmers USING(raw_date, data_str1)
+    
+    UNION ALL
+    
+    -- Level-1 item farmers
+    SELECT DISTINCT actor_str3
+    FROM iceberg.l2m.etl_increase_item eii
+    GROUP BY 1
+    HAVING MAX(actor_level) = 1
+),
+farmers AS (
+    SELECT DISTINCT
+        actor_str3 AS user_id,
+        actor_id AS role_id,
+        MAX(actor_level) OVER(PARTITION BY actor_id) AS role_level,
+        actor_world AS server_id,
+        CASE 
+            WHEN actor_str3 IN (
+                SELECT DISTINCT game_account_id AS user_id 
+                FROM iceberg.l2m.etl_recharge
+            ) 
+            THEN 'PU Farmer' 
+            ELSE 'Non-PU Farmer' 
+        END AS user_type
+    FROM iceberg.l2m.etl_login l 
+    JOIN flagged_farmers f USING(actor_str3)
+    WHERE data_str1 NOT IN (
+        '103.15.62', '103.15.63', '211.189.163', '211.189.167',
+        '27.110.34', '59.124.94', '203.75.255', '66.162.136',
+        '209.234.187', '62.172.43', '64.25.32', '66.195.99'
+    )
+)
+SELECT DISTINCT * FROM farmers

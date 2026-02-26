@@ -1,0 +1,19 @@
+{
+  "description": "L2M Active Login ETL: Extract login events from Trino",
+  "comment": "Extracts player login activity data for L2M",
+  "inputSources": [
+    {
+      "name": "source_data",
+      "type": "jdbc",
+      "connection": "GDS_TRINO",
+      "sqlTemplate": "templates/re-standardization/l2m/active_login.sql.j2"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/l2m/etl/active_login/{logDate}",
+      "format": "parquet"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+hadoop:
+  slth:
+    - active: std/slth/roles/active_details
+    - charge: std/slth/roles/daily_role_charge_details
+    - item: slth_913.db/item_increase
+    - shop: slth_913.db/shop_buy
+    - gameadd: slth_913.db/gameadd
+    - dbgadd: slth_913.db/dbgadd
+    - user_profile: mf/slth/users/user_profile
+    - role_profile: mf/slth/roles/role_profile
+    - inapp_event: std/slth/devices/inapp_event
+  mts:
+    - active: std/mts/roles/active_details
+    - charge: std/mts/roles/daily_role_charge_details
+    - money: std/mts/roles/money
+    - dbgadd: etl/mts/sdk/DBGAdd
+    - gameadd: etl/mts/sdk/GameAdd
+    - shop: ms_a664.db/shop_flow
+    - task: ms_a664.db/task_flow
+    - user_profile: mf/mts/users/user_profile
+    - role_profile: mf/mts/roles/role_profile
+    - inapp_event: std/mts/devices/inapp_event
+  mlb:
+    - active: std/mlb/roles/active_details
+    - charge: std/mlb/roles/daily_role_charge_details
+    - item: etl/mlb/ingame/ItemFlow
+    - money: etl/mlb/ingame/MoneyFlow
+    - user_profile: mf/mlb/users/user_profile
+    - role_profile: mf/mlb/roles/role_profile
+    - inapp_event: std/mlb/devices/inapp_event
+  cft:
+    - active: std/cft/roles/active_details
+    - charge: std/cft/roles/daily_role_charge_details
+    - item: cafetown_g0009.db/item_flow
+    - money: etl/cft/ingame/money_flow
+    - dbgadd: etl/cft/sdk/DBGAdd
+    - gameadd: etl/cft/sdk/GameAdd
+    - user_profile: mf/cft/users/user_profile
+    - role_profile: mf/cft/roles/role_profile
+    - inapp_event: std/cft/devices/inapp_event
+    - giftid_mapping: cft/ingame/giftid_mapping.xlsx
+  pwmsea:
+    - active: pwm_sea_425.db/rolelogin
+    - charge: pwm_sea_425.db/addcash
+    - gameadd: pwm_sea_425.db/GameAdd
+    - dbgadd: pwm_sea_425.db/DBGAdd
+    - shop: pwm_sea_425.db/shoptrade
+    - user_profile: pwm_sea_425.db/user_profile
+  td:
+    - active: td_486.db/login
+    - charge: td_486.db/recharge
+  gnoth:
+    - active: gno_th_496.db/login_logout
+    - charge: gno_th_496.db/recharge
+    - item: gno_th_496.db/item_flow
+    - money: gno_th_496.db/money_flow
+    - gameadd: gno_th_496.db/sdk_gameadd
+  fw2:
+    - active: fw2_aa01.db/login
+    - charge: fw2_aa01.db/recharge
+    - money: fw2_aa01.db/moneyflow
+    - gameadd: fw2_aa01.db/GameAdd
+    - dbgadd: fw2_aa01.db/DBGAdd
+    - user_profile: fw2_aa01.db/user_profile
+    - role_profile: fw2_aa01.db/role_profile
+  omgthai:
+    - active: omg2thai.db/rolelogin
+    - charge: omg2thai.db/charge
+    - money: omg2thai.db/moneyflow
+    - dbgadd: omg2thai.db/sdk_dbgadd
+    - gameadd: omg2thai.db/sdk_gameadd
+  cloudsongthai:
+    - active: sotcc.db/playerlogin
+    - charge: sotcc.db/recharge
+    - item: sotcc.db/itemflow
+    - money: sotcc.db/moneyflow
+    - dbgadd: sotcc.db/sdk_dbg_add
+    - gameadd: sotcc.db/sdk_game_add
+  l2m:
+    - active: std/l2m/roles/active_details
+    - charge: std/l2m/roles/daily_role_charge_details
+    - user_profile: mf/l2m/users/user_profile
+    - role_profile: mf/l2m/roles/role_profile
+    - inapp_event: std/l2m/devices/inapp_event
+  skf:
+    - active: std/skf/roles/active_details
+    - charge: std/skf/roles/daily_role_charge_details
+    - user_profile: mf/skf/users/user_profile
+    - role_profile: mf/skf/roles/role_profile
+    - inapp_event: std/skf/devices/inapp_event
+
+warehouse:
+  common_tables_1: &common_tables_1
+    active: public.mkt_user_active
+    charge: public.mkt_user_charge
+    retention: public.mkt_user_retention
+    campaign: public.mkt_campaigns
+    user_profile: public.mkt_user_profile
+    role_profile: public.mkt_role_profile
+    active_details: public.daily_role_active_details
+    charge_details: public.daily_role_charge_details
+  common_tables_2: &common_tables_2
+    active: mkt.daily_user_active
+    charge: mkt.daily_user_charge
+    retention: mkt.daily_user_retention
+    campaign: mkt.campaigns
+    user_profile: ops.user_profile
+    role_profile: ops.role_profile
+    active_details: ops.daily_role_active_details
+    charge_details: ops.daily_role_charge_details
+  ncv_tables_3: &common_tables_3
+    active: public.mkt_user_active
+    charge: public.mkt_user_charge
+    retention: public.mkt_user_retention
+    campaign: public.mkt_campaigns
+    user_profile: public.mkt_user_profile
+    role_profile: public.mkt_role_profile
+    active_details: iceberg.{game_id}.etl_login
+    charge_details: iceberg.{game_id}.etl_recharge
+  cft:
+    <<: *common_tables_1 
+  fw2:
+    <<: *common_tables_1
+  mlb:
+    <<: *common_tables_1
+  mts:
+    <<: *common_tables_1
+  slth:
+    <<: *common_tables_1
+  pwmsea:
+    <<: *common_tables_2
+  td:
+    <<: *common_tables_2
+  gnoth:
+    <<: *common_tables_2
+  omgthai:
+    <<: *common_tables_2
+  cloudsongthai:
+    <<: *common_tables_2
+  l2m:
+   <<: *common_tables_3
+  skf:
+   <<: *common_tables_1

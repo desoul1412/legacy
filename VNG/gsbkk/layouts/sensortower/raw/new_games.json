@@ -1,0 +1,16 @@
+{
+  "description": "SensorTower New Games API - Extract newly released games",
+  "note": "Raw API data extraction. Run via: ./run_api_extraction.sh sensortower new_games {month}",
+  "apiConfig": {
+    "source": "sensortower",
+    "endpoint": "v1/new_games",
+    "configFile": "configs/api/sensortower.json"
+  },
+  "outputs": [
+    {
+      "type": "file",
+      "path": "hdfs://c0s/user/gsbkk-workspace-yc9t6/sensortower/raw/new_games/{month}",
+      "format": "json"
+    }
+  ]
+}
