@@ -1,0 +1,42 @@
+{#
+  STD Layer - LTV Session Features
+  ----------------------------------
+  Input views:
+    active      hdfs://.../gnoth/std/active/{logDate}      (from std_login task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/sessions/{logDate}
+
+  Computes per-user session counts for D0-D7 cohort window.
+  Migrated from: templates/ltv/feature_set.sql.j2 (session_features CTE group)
+#}
+
+WITH filtered_users AS (
+    SELECT user_id, install_date
+    FROM base_users
+    WHERE install_date IS NOT NULL
+      AND DATEDIFF(CURRENT_DATE(), install_date) >= 7
+),
+user_activity AS (
+    SELECT /*+ BROADCAST(b) */
+        a.user_id,
+        b.install_date,
+        DATEDIFF(a.report_date, b.install_date) AS days_since_install
+    FROM active a
+    INNER JOIN filtered_users b ON a.user_id = b.user_id
+    WHERE a.report_date >= b.install_date
+      AND DATEDIFF(a.report_date, b.install_date) BETWEEN 0 AND 7
+)
+SELECT
+    user_id,
+    SUM(CASE WHEN days_since_install = 0 THEN 1 ELSE 0 END) AS sessions_cnt_d0,
+    SUM(CASE WHEN days_since_install = 1 THEN 1 ELSE 0 END) AS sessions_cnt_d1,
+    SUM(CASE WHEN days_since_install = 2 THEN 1 ELSE 0 END) AS sessions_cnt_d2,
+    SUM(CASE WHEN days_since_install = 3 THEN 1 ELSE 0 END) AS sessions_cnt_d3,
+    SUM(CASE WHEN days_since_install = 4 THEN 1 ELSE 0 END) AS sessions_cnt_d4,
+    SUM(CASE WHEN days_since_install = 5 THEN 1 ELSE 0 END) AS sessions_cnt_d5,
+    SUM(CASE WHEN days_since_install = 6 THEN 1 ELSE 0 END) AS sessions_cnt_d6,
+    SUM(CASE WHEN days_since_install = 7 THEN 1 ELSE 0 END) AS sessions_cnt_d7,
+    SUM(CASE WHEN days_since_install BETWEEN 0 AND 3 THEN 1 ELSE 0 END) AS sessions_cnt_d0_to_d3,
+    COUNT(*) AS sessions_cnt_d0_to_d7
+FROM user_activity
+GROUP BY user_id

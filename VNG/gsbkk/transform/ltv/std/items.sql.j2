@@ -1,0 +1,58 @@
+{#
+  STD Layer - LTV Item Features
+  ------------------------------------
+  Input views:
+    item        hdfs://.../gnoth/std/item/{logDate}        (from std_item task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/items/{logDate}
+
+  Computes per-user item gain/spend metrics for D0-D7 cohort window.
+  Excludes money-type item IDs (-100, -300, 110000).
+  Migrated from: templates/ltv/feature_set.sql.j2 (item_features CTE group)
+#}
+
+WITH user_item_activity AS (
+    SELECT
+        REGEXP_REPLACE(m.account_id, '^.*_', '') AS user_id,
+        m.item_id,
+        m.record_time,
+        m.flow_type,
+        b.install_date,
+        DATEDIFF(DATE(m.record_time), b.install_date) AS days_since_install,
+        ABS(m.after_quantity - m.before_quantity) AS quantity_change
+    FROM item m
+    INNER JOIN base_users b ON REGEXP_REPLACE(m.account_id, '^.*_', '') = b.user_id
+    WHERE DATEDIFF(DATE(m.record_time), b.install_date) BETWEEN 0 AND 7
+      AND m.item_id NOT IN ('-100', '-300', '110000')
+),
+daily_item_aggregates AS (
+    SELECT
+        user_id,
+        days_since_install,
+        SUM(CASE WHEN flow_type = 0 THEN quantity_change ELSE 0 END) AS items_gain,
+        SUM(CASE WHEN flow_type = 1 THEN quantity_change ELSE 0 END) AS items_spent
+    FROM user_item_activity
+    GROUP BY user_id, days_since_install
+)
+SELECT
+    user_id,
+    MAX(CASE WHEN days_since_install = 0 THEN items_gain ELSE 0 END) AS items_gain_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN items_gain ELSE 0 END) AS items_gain_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN items_gain ELSE 0 END) AS items_gain_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN items_gain ELSE 0 END) AS items_gain_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN items_gain ELSE 0 END) AS items_gain_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN items_gain ELSE 0 END) AS items_gain_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN items_gain ELSE 0 END) AS items_gain_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN items_gain ELSE 0 END) AS items_gain_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN items_spent ELSE 0 END) AS items_spent_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN items_spent ELSE 0 END) AS items_spent_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN items_spent ELSE 0 END) AS items_spent_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN items_spent ELSE 0 END) AS items_spent_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN items_spent ELSE 0 END) AS items_spent_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN items_spent ELSE 0 END) AS items_spent_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN items_spent ELSE 0 END) AS items_spent_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN items_spent ELSE 0 END) AS items_spent_d7,
+    SUM(items_gain) AS items_gain_d0_to_d7,
+    SUM(items_spent) AS items_spent_d0_to_d7
+FROM daily_item_aggregates
+GROUP BY user_id

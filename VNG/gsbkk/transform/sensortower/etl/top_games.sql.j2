@@ -1,0 +1,17 @@
+{#
+  ETL Layer - SensorTower Top Games
+  ----------------------------------
+  Source : RAW JSON  hdfs://.../sensortower/raw/top_games/*/{logDate}
+  Target : ETL Parquet hdfs://.../sensortower/etl/top_games/{logDate}
+
+  Migrated from: layouts/sensortower/etl/top_games.json
+                 + templates/sensortower/etl_top_games.sql.j2
+#}
+
+SELECT
+    CAST(app_id            AS string) AS app_id,
+    CAST(country           AS string) AS country,
+    CAST(date              AS timestamp) AS date,
+    CAST(revenue_absolute  AS long)   AS revenue_absolute,
+    CAST(units_absolute    AS long)   AS units_absolute
+FROM source_data

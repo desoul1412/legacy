@@ -1,0 +1,65 @@
+{#
+  STD Layer - LTV Purchase Features
+  ------------------------------------
+  Input views:
+    charge      hdfs://.../gnoth/std/charge/{logDate}      (from std_charge task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/purchase/{logDate}
+
+  Computes per-user purchase metrics for D0-D7 cohort window:
+    - days_to_first_purchase, first_purchase_amount, first_purchase_day
+    - daily revenue D0-D7, purchase count D0-D7, cumulative revenue D0-D7
+  Migrated from: templates/ltv/feature_set.sql.j2 (purchase_features CTE group)
+#}
+
+WITH user_charges AS (
+    SELECT
+        c.user_id,
+        c.report_date,
+        c.rev_usd,
+        b.install_date,
+        DATEDIFF(c.report_date, b.install_date) AS days_since_install
+    FROM charge c
+    INNER JOIN base_users b ON c.user_id = b.user_id
+    WHERE DATEDIFF(c.report_date, b.install_date) BETWEEN 0 AND 7
+),
+first_purchase AS (
+    SELECT
+        user_id,
+        MIN(days_since_install) AS days_to_first_purchase,
+        FIRST_VALUE(rev_usd) OVER (PARTITION BY user_id ORDER BY days_since_install ASC) AS first_purchase_amount,
+        MIN(days_since_install) AS first_purchase_day
+    FROM user_charges
+    GROUP BY user_id, rev_usd, days_since_install
+),
+daily_revenue AS (
+    SELECT
+        user_id,
+        days_since_install,
+        SUM(rev_usd) AS daily_revenue,
+        COUNT(*) AS daily_purchase_count
+    FROM user_charges
+    GROUP BY user_id, days_since_install
+)
+SELECT
+    COALESCE(fp.user_id, dr.user_id) AS user_id,
+    fp.days_to_first_purchase,
+    fp.first_purchase_amount,
+    fp.first_purchase_day,
+    MAX(CASE WHEN dr.days_since_install = 0 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d0,
+    MAX(CASE WHEN dr.days_since_install = 1 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d1,
+    MAX(CASE WHEN dr.days_since_install = 2 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d2,
+    MAX(CASE WHEN dr.days_since_install = 3 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d3,
+    MAX(CASE WHEN dr.days_since_install = 4 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d4,
+    MAX(CASE WHEN dr.days_since_install = 5 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d5,
+    MAX(CASE WHEN dr.days_since_install = 6 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d6,
+    MAX(CASE WHEN dr.days_since_install = 7 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d7,
+    SUM(CASE WHEN dr.days_since_install BETWEEN 0 AND 7 THEN dr.daily_purchase_count ELSE 0 END) AS purchase_cnt_d0_to_d7,
+    SUM(CASE WHEN dr.days_since_install BETWEEN 0 AND 7 THEN dr.daily_revenue ELSE 0 END) AS total_revenue_d0_to_d7
+FROM first_purchase fp
+FULL OUTER JOIN daily_revenue dr USING(user_id)
+GROUP BY
+    COALESCE(fp.user_id, dr.user_id),
+    fp.days_to_first_purchase,
+    fp.first_purchase_amount,
+    fp.first_purchase_day

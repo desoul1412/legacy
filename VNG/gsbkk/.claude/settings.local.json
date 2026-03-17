@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r create_pipeline_tasks D:BaoLN2VNGgsbkk/dags --include=*.py)",
+      "Bash(cd:*)",
+      "Bash(xargs ls:*)",
+      "Bash(git:*)",
+      "Bash(grep -r \"l2m_active\\\\|l2m_cumulative\\\\|l2m_farmers\\\\|l2m_guild\\\\|l2m_item\" /d/BaoLN2/VNG/gsbkk/dags/ --include=*.py)",
+      "Bash(grep -l layouts.*json /d/BaoLN2/VNG/gsbkk/dags/**/*.py)",
+      "Bash(wc:*)",
+      "Bash(rm -f run_game_health_pipeline.sh run_rfc_pipeline.sh scripts/verify_rolling_forecast_refactoring.sh)",
+      "Bash(find . -type d -name \"__pycache__\" -exec rm -rf {} +)",
+      "Bash(cp -r D:/BaoLN2/VNG/gsbkk/templates/game_health_check D:/BaoLN2/VNG/gsbkk/transform/game_health_check)",
+      "Bash(cp -r D:/BaoLN2/VNG/gsbkk/templates/re-standardization D:/BaoLN2/VNG/gsbkk/transform/re-standardization)",
+      "Bash(cp -r D:/BaoLN2/VNG/gsbkk/templates/market_research D:/BaoLN2/VNG/gsbkk/transform/market_research)",
+      "Bash(cp -r D:/BaoLN2/VNG/gsbkk/templates/sql D:/BaoLN2/VNG/gsbkk/transform/sql)",
+      "Bash(find D:/BaoLN2/VNG/gsbkk -name *.json)",
+      "Bash(find D:/BaoLN2/VNG/gsbkk/layouts -name *.json)",
+      "Bash(grep -r layouts/ D:/BaoLN2/VNG/gsbkk --include=*.py --include=*.sh)",
+      "Bash(grep -rn layouts/.*.json D:/BaoLN2/VNG/gsbkk/dags D:/BaoLN2/VNG/gsbkk/run_etl_process.sh)",
+      "Bash(/tmp/layout_audit.txt:*)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

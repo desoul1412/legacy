@@ -1,0 +1,13 @@
+{#
+  ETL Layer - SensorTower New Games
+  -----------------------------------
+  Source : RAW JSON  hdfs://.../sensortower/raw/new_games/{logDate}
+  Target : ETL Parquet hdfs://.../sensortower/etl/new_games/{logDate}
+
+  No transformation needed — JSON schema is preserved as-is.
+  Casting and field mapping happens in the STD layer.
+
+  Migrated from: layouts/sensortower/etl/new_games.json
+#}
+
+SELECT * FROM source_data

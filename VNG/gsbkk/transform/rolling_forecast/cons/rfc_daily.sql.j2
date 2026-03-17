@@ -1,0 +1,49 @@
+{#
+  CONS Layer - Rolling Forecast Daily
+  -----------------------------------
+  Source view : daily_rfc  (raw GSheet data registered by the extraction task)
+  Target table: public.rfc_daily  (Postgres TSN)
+
+  Run via run_sql.sh:
+    ./run_sql.sh \
+        sql_file=transform/cons/rfc_daily.sql.j2 \
+        input_path=hdfs://c0s/user/gsbkk-workspace-yc9t6/raw/rfc/daily/logDate={{ logDate }} \
+        input_view=daily_rfc \
+        output_type=jdbc \
+        output_table=public.rfc_daily \
+        output_mode=append \
+        delete_condition="(date IS NULL OR game IS NULL) OR EXTRACT(YEAR FROM date) = {{ logDate[:4] }}" \
+        gameId=rfc \
+        logDate={{ logDate }}
+
+  Migrated from: layouts/rolling_forecast/gsheet_daily_rfc.json
+                 + templates/rolling_forecast/gsheet_daily_rfc.sql.j2
+#}
+
+SELECT
+    `Game`                          AS game,
+    CAST(`Date`        AS DATE)     AS date,
+    CAST(`Install`     AS DOUBLE)   AS install,
+    CAST(`NRU`         AS DOUBLE)   AS nru,
+    CAST(`RR1`         AS DOUBLE)   AS rr1,
+    CAST(`DAU`         AS DOUBLE)   AS dau,
+    CAST(`PU`          AS DOUBLE)   AS pu,
+    CAST(`NPU`         AS DOUBLE)   AS npu,
+    CAST(`Rev`         AS DOUBLE)   AS rev,
+    CAST(`PR`          AS DOUBLE)   AS pr,
+    CAST(`ARPPU`       AS DOUBLE)   AS arppu,
+    CAST(`Cost`        AS DOUBLE)   AS cost,
+    CAST(`RFC Install` AS DOUBLE)   AS rfc_install,
+    CAST(`RFC NRU`     AS DOUBLE)   AS rfc_nru,
+    CAST(`RFC RR1`     AS DOUBLE)   AS rfc_rr1,
+    CAST(`RFC DAU`     AS DOUBLE)   AS rfc_dau,
+    CAST(`RFC PU`      AS DOUBLE)   AS rfc_pu,
+    CAST(`RFC NPU`     AS DOUBLE)   AS rfc_npu,
+    CAST(`RFC Rev`     AS DOUBLE)   AS rfc_rev,
+    CAST(`RFC PR`      AS DOUBLE)   AS rfc_pr,
+    CAST(`RFC ARPPU`   AS DOUBLE)   AS rfc_arppu,
+    CAST(`Month`       AS DATE)     AS month
+FROM daily_rfc
+WHERE `Game` IS NOT NULL AND `Game` != ''
+  AND `Date` IS NOT NULL AND `Date` != ''
+ORDER BY `Date` DESC

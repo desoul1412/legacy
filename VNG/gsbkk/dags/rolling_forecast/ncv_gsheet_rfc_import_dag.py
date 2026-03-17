@@ -1,61 +1,120 @@
 """
-Rolling Forecast Google Sheets Import DAG
+Rolling Forecast Google Sheets Import DAG (NCV variant)
 
-Imports rolling forecast data from Google Sheets to PostgreSQL
-- Daily RFC data: 'Daily Overall' sheet → public.rfc_daily
-- Monthly RFC data: 'Monthly Overall' sheet → public.rfc_monthly
+Imports rolling forecast data from the NCV Google Sheet to PostgreSQL.
 
-Pipeline Flow:
-1. Import daily RFC data from Google Sheets
-2. Import monthly RFC data from Google Sheets (runs in parallel)
+Pipeline Flow (two steps per dataset):
+  1. raw_*_rfc_ncv  : read Google Sheet → write JSON lines to HDFS RAW layer
+  2. cons_*_rfc_ncv : read HDFS RAW     → apply SQL transform → write to Postgres
 
-Execution: Manual trigger or scheduled
+Both daily and monthly datasets run in parallel.
+
+Sheet: https://docs.google.com/spreadsheets/d/1qp3fB8yoqFE1r3zmqkgh_9xXbf4MyOOBgMEWTVu7FEQ
+
+Migrated from: layouts/rolling_forecast/gsheet_daily_rfc_ncv.json
+               layouts/rolling_forecast/gsheet_monthly_rfc_ncv.json
+               + etl_engine.py (gsheet input type)
 """
+
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.empty import EmptyOperator
-from datetime import datetime, timedelta
-from utils.dag_helpers import create_etl_operator
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.dag_helpers import create_gsheet_raw_operator, create_sql_operator
+
+# ==============================================================================
+# CONSTANTS
+# ==============================================================================
+
+SHEET_ID    = '1qp3fB8yoqFE1r3zmqkgh_9xXbf4MyOOBgMEWTVu7FEQ'
+HDFS_BASE   = 'hdfs://c0s/user/gsbkk-workspace-yc9t6'
+HDFS_RAW    = HDFS_BASE + '/raw/rfc_ncv'
+
+# ==============================================================================
+# DAG
+# ==============================================================================
 
 dag = DAG(
-    dag_id="rolling_forecast_gsheet_import_ncv",
+    dag_id='rolling_forecast_gsheet_import_ncv',
     default_args={
-        "owner": "sonph4",
-        "retries": 1,
-        "start_date": datetime(2026, 1, 20),
-        "retry_delay": timedelta(minutes=5),
-        "depends_on_past": False,
+        'owner': 'sonph4',
+        'retries': 1,
+        'start_date': datetime(2026, 1, 20),
+        'retry_delay': timedelta(minutes=5),
+        'depends_on_past': False,
     },
-    description="Import rolling forecast data from Google Sheets to PostgreSQL",
-    schedule_interval="0 9 * * *",  # Daily at 9 AM
+    description='Import NCV rolling forecast data from Google Sheets to PostgreSQL',
+    schedule_interval='0 9 * * *',
     catchup=False,
     max_active_runs=1,
-    tags=["rolling_forecast", "gsheet", "import"],
+    tags=['rolling_forecast', 'gsheet', 'import', 'ncv'],
 )
 
-# Task: Import daily RFC data
-# Uses ETL operator which calls run_etl_process.sh
-import_daily_rfc = create_etl_operator(
+# ==============================================================================
+# DAILY RFC (NCV)
+# ==============================================================================
+
+# Step 1: Google Sheet → HDFS RAW
+raw_daily_rfc = create_gsheet_raw_operator(
     dag=dag,
-    task_id='import_daily_rfc_ncv',
-    layout='layouts/rolling_forecast/gsheet_daily_rfc_ncv.json',
-    game_id='rfc',
-    log_date="{{ ds }}"
+    task_id='raw_daily_rfc_ncv',
+    sheet_id=SHEET_ID,
+    worksheet='Daily Overall',
+    output_path=HDFS_RAW + '/daily/{logDate}',
 )
 
-# Task: Import monthly RFC data
-# Uses ETL operator which calls run_etl_process.sh
-import_monthly_rfc = create_etl_operator(
+# Step 2: HDFS RAW → Postgres (target: rfc_daily_ncv, filtered to Lineage games)
+cons_daily_rfc = create_sql_operator(
     dag=dag,
-    task_id='import_monthly_rfc_ncv',
-    layout='layouts/rolling_forecast/gsheet_monthly_rfc_ncv.json',
+    task_id='cons_daily_rfc_ncv',
+    sql_file='transform/rolling_forecast/cons/rfc_daily.sql.j2',
+    output_type='jdbc',
+    input_path=HDFS_RAW + '/daily/{logDate}',
+    input_view='daily_rfc',
+    output_table='public.rfc_daily_ncv',
+    output_mode='append',
+    delete_condition="game LIKE '%Lineage%' AND (date IS NULL OR game IS NULL OR EXTRACT(YEAR FROM date) = {{ ds[:4] }})",
     game_id='rfc',
-    log_date="{{ ds }}"
 )
 
-# Task dependencies
+# ==============================================================================
+# MONTHLY RFC (NCV)
+# ==============================================================================
+
+# Step 1: Google Sheet → HDFS RAW
+raw_monthly_rfc = create_gsheet_raw_operator(
+    dag=dag,
+    task_id='raw_monthly_rfc_ncv',
+    sheet_id=SHEET_ID,
+    worksheet='Monthly Overall',
+    output_path=HDFS_RAW + '/monthly/{logDate}',
+)
+
+# Step 2: HDFS RAW → Postgres (target: rfc_monthly_ncv)
+cons_monthly_rfc = create_sql_operator(
+    dag=dag,
+    task_id='cons_monthly_rfc_ncv',
+    sql_file='transform/rolling_forecast/cons/rfc_monthly.sql.j2',
+    output_type='jdbc',
+    input_path=HDFS_RAW + '/monthly/{logDate}',
+    input_view='monthly_rfc',
+    output_table='public.rfc_monthly_ncv',
+    output_mode='append',
+    delete_condition="(month IS NULL OR game IS NULL) OR SUBSTRING(CAST(month AS VARCHAR), 1, 4) = '{{ ds[:4] }}'",
+    game_id='rfc',
+)
+
+# ==============================================================================
+# DEPENDENCIES
+# ==============================================================================
+
 start = EmptyOperator(task_id='start', dag=dag)
-end = EmptyOperator(task_id='end', dag=dag)
+end   = EmptyOperator(task_id='end',   dag=dag)
 
-# Both imports can run in parallel
-start >> [import_daily_rfc, import_monthly_rfc] >> end
+start >> [raw_daily_rfc, raw_monthly_rfc]
+raw_daily_rfc   >> cons_daily_rfc   >> end
+raw_monthly_rfc >> cons_monthly_rfc >> end

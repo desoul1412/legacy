@@ -203,20 +203,21 @@ export PYSPARK_PYTHON="./environment/bin/python"
 # CODE TARBALL MANAGEMENT
 # ==============================================================================
 
-echo ">>> Checking code tarball..."
-if ! hdfs dfs -test -f "$CODE_TARBALL"; then
-    echo ">>> Creating code tarball..."
-    LOCAL_TARBALL="/tmp/gsbkk-src-$$.tar.gz"
-    cd "$AIRFLOW_REPO"
-    tar -czf "$LOCAL_TARBALL" \
-        --exclude='*.pyc' \
-        --exclude='__pycache__' \
-        --exclude='.git' \
-        --exclude='airflow/logs' \
-        src/ configs/ layouts/
-    hdfs dfs -put -f "$LOCAL_TARBALL" "$CODE_TARBALL"
-    rm -f "$LOCAL_TARBALL"
-fi
+# Always rebuild so Spark executors pick up the latest code from the repo.
+# Without a CI/CD runner to pre-package code, a cached tarball would silently
+# run stale code after every git push.
+echo ">>> Packaging repo code into tarball..."
+LOCAL_TARBALL="/tmp/gsbkk-src-$$.tar.gz"
+cd "$AIRFLOW_REPO"
+tar -czf "$LOCAL_TARBALL" \
+    --exclude='*.pyc' \
+    --exclude='__pycache__' \
+    --exclude='.git' \
+    --exclude='airflow/logs' \
+    src/ configs/ layouts/ transform/ templates/
+hdfs dfs -put -f "$LOCAL_TARBALL" "$CODE_TARBALL"
+rm -f "$LOCAL_TARBALL"
+echo ">>> Code tarball uploaded to $CODE_TARBALL"
 
 # ==============================================================================
 # SPARK SUBMIT - ETL PROCESSING

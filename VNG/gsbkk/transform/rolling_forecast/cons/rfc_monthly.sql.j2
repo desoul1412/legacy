@@ -1,0 +1,62 @@
+{#
+  CONS Layer - Rolling Forecast Monthly
+  --------------------------------------
+  Source view : monthly_rfc  (raw GSheet data registered by the extraction task)
+  Target table: public.rfc_monthly  (Postgres TSN)
+
+  Run via run_sql.sh:
+    ./run_sql.sh \
+        sql_file=transform/cons/rfc_monthly.sql.j2 \
+        input_path=hdfs://c0s/user/gsbkk-workspace-yc9t6/raw/rfc/monthly/{logDate} \
+        input_view=monthly_rfc \
+        output_type=jdbc \
+        output_table=public.rfc_monthly \
+        output_mode=append \
+        delete_condition="(month IS NULL OR game IS NULL) OR SUBSTRING(CAST(month AS VARCHAR), 1, 4) = '{{ logDate[:4] }}'" \
+        gameId=rfc \
+        logDate={{ logDate }}
+
+  Migrated from: layouts/rolling_forecast/gsheet_monthly_rfc.json
+                 + templates/rolling_forecast/gsheet_monthly_rfc.sql.j2
+#}
+
+SELECT
+    `Game`                                      AS game,
+    `Product Group`                             AS product_group,
+    `Market`                                    AS market,
+    `Team`                                      AS team,
+    `Month`                                     AS month,
+    `Genre`                                     AS genre,
+    CAST(`Gross Rev - Annual KPI`  AS DOUBLE)   AS gross_rev_annual_kpi,
+    CAST(`Profit - Annual KPI`     AS DOUBLE)   AS profit_annual_kpi,
+    CAST(`MAU - Annual KPI`        AS DOUBLE)   AS mau_annual_kpi,
+    CAST(`Gross Rev - RFC`         AS DOUBLE)   AS gross_rev_rfc,
+    CAST(`Profit - RFC`            AS DOUBLE)   AS profit_rfc,
+    CAST(`MAU - RFC`               AS DOUBLE)   AS mau_rfc,
+    CAST(`Gross Rev - Actual`      AS DOUBLE)   AS gross_rev_actual,
+    CAST(`Profit - Actual`         AS DOUBLE)   AS profit_actual,
+    CAST(`MAU - Actual`            AS DOUBLE)   AS mau_actual,
+    CAST(`MPU - RFC`               AS DOUBLE)   AS mpu_rfc,
+    CAST(`MPU - Actual`            AS DOUBLE)   AS mpu_actual,
+    CAST(`NRU - RFC`               AS DOUBLE)   AS nru_rfc,
+    CAST(`NRU - Actual`            AS DOUBLE)   AS nru_actual,
+    CAST(`Install - RFC`           AS DOUBLE)   AS install_rfc,
+    CAST(`Install - Actual`        AS DOUBLE)   AS install_actual,
+    CAST(`Paid Install - RFC`      AS DOUBLE)   AS paid_install_rfc,
+    CAST(`Paid Install - Actual`   AS DOUBLE)   AS paid_install_actual,
+    CAST(`Channeling - RFC`        AS DOUBLE)   AS channeling_rfc,
+    CAST(`Licensce & Royalty - RFC`    AS DOUBLE)  AS licencse_royalty_rfc,
+    CAST(`Server - RFC`            AS DOUBLE)   AS server_rfc,
+    CAST(`Internal Platform - RFC` AS DOUBLE)   AS internal_platform_rfc,
+    CAST(`Other Cost - RFC`        AS DOUBLE)   AS other_cost_rfc,
+    CAST(`Channeling - Actual`         AS DOUBLE)  AS channeling_actual,
+    CAST(`Licensce & Royalty - Actual` AS DOUBLE)  AS licencse_royalty_actual,
+    CAST(`Server - Actual`         AS DOUBLE)   AS server_actual,
+    CAST(`Internal Platform - Actual`  AS DOUBLE)  AS internal_platform_actual,
+    CAST(`Other Cost - Actual`     AS DOUBLE)   AS other_cost_actual,
+    CAST(`MKT - RFC`               AS DOUBLE)   AS mkt_rfc,
+    CAST(`MKT - Actual`            AS DOUBLE)   AS mkt_actual,
+    CAST(`MKT - KPI`               AS DOUBLE)   AS mkt_kpi
+FROM monthly_rfc
+WHERE `Game` IS NOT NULL AND `Game` != ''
+  AND `Month` IS NOT NULL AND `Month` != ''

@@ -1,0 +1,35 @@
+{#
+  STD Layer - LTV Target Variables
+  ------------------------------------
+  Input views:
+    charge      hdfs://.../gnoth/std/charge/{logDate}      (from std_charge task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/targets/{logDate}
+
+  Computes cumulative LTV targets at D7/D14/D30/D60/D90/D120/D180.
+  Uses lifetime charges (no upper bound on days_since_install).
+  Migrated from: templates/ltv/feature_set.sql.j2 (ltv_targets CTE group)
+#}
+
+WITH user_lifetime_charges AS (
+    SELECT
+        c.user_id,
+        c.report_date,
+        c.rev_usd,
+        b.install_date,
+        DATEDIFF(c.report_date, b.install_date) AS days_since_install
+    FROM charge c
+    INNER JOIN base_users b ON c.user_id = b.user_id
+    WHERE DATEDIFF(c.report_date, b.install_date) >= 0
+)
+SELECT
+    user_id,
+    SUM(CASE WHEN days_since_install <= 7   THEN rev_usd ELSE 0 END) AS ltv_d7,
+    SUM(CASE WHEN days_since_install <= 14  THEN rev_usd ELSE 0 END) AS ltv_d14,
+    SUM(CASE WHEN days_since_install <= 30  THEN rev_usd ELSE 0 END) AS ltv_d30,
+    SUM(CASE WHEN days_since_install <= 60  THEN rev_usd ELSE 0 END) AS ltv_d60,
+    SUM(CASE WHEN days_since_install <= 90  THEN rev_usd ELSE 0 END) AS ltv_d90,
+    SUM(CASE WHEN days_since_install <= 120 THEN rev_usd ELSE 0 END) AS ltv_d120,
+    SUM(CASE WHEN days_since_install <= 180 THEN rev_usd ELSE 0 END) AS ltv_d180
+FROM user_lifetime_charges
+GROUP BY user_id

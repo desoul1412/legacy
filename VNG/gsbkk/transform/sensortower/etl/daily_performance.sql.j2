@@ -1,0 +1,13 @@
+{#
+  ETL Layer - SensorTower Daily Performance
+  ------------------------------------------
+  Source : RAW JSON  hdfs://.../sensortower/raw/daily_performance/month={logDate}-01
+  Target : ETL Parquet hdfs://.../sensortower/etl/performance/month={logDate}-01
+
+  No transformation needed — JSON schema is preserved as-is.
+  Casting and field mapping happens in the STD layer.
+
+  Migrated from: layouts/sensortower/etl/daily_performance.json
+#}
+
+SELECT * FROM source_data

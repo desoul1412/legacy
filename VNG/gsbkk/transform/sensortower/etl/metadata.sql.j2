@@ -1,0 +1,13 @@
+{#
+  ETL Layer - SensorTower App Metadata
+  --------------------------------------
+  Source : RAW JSON  hdfs://.../sensortower/raw/metadata/{logDate}-01
+  Target : ETL Parquet hdfs://.../sensortower/etl/metadata/{logDate}-01
+
+  No transformation needed — JSON schema is preserved as-is.
+  Casting and field normalization happens in the STD layer.
+
+  Migrated from: layouts/sensortower/etl/metadata.json
+#}
+
+SELECT * FROM source_data

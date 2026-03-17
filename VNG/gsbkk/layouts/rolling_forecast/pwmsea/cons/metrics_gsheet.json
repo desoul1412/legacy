@@ -5,7 +5,7 @@
       "name": "diagnostic",
       "type": "jdbc",
       "connection": "TSN_POSTGRES",
-      "sqlTemplate": "templates/rolling_forecast/rolling_forecast_gsheet.sql.j2"
+      "sqlTemplate": "transform/rolling_forecast/cons/rolling_forecast_gsheet.sql.j2"
     }
   ],
   "outputs": [

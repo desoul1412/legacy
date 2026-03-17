@@ -1,0 +1,12 @@
+{#
+  ETL Layer - SensorTower Game Tags
+  -----------------------------------
+  Source : RAW JSON  hdfs://.../sensortower/raw/game_tags/{logDate}-01
+  Target : ETL Parquet hdfs://.../sensortower/etl/game_tags/{logDate}-01
+
+  No transformation needed — JSON schema is preserved as-is.
+
+  Migrated from: layouts/sensortower/etl/game_tags.json
+#}
+
+SELECT * FROM source_data

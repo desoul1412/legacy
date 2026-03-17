@@ -1,0 +1,98 @@
+{#
+  STD Layer - LTV Money Features
+  ------------------------------------
+  Input views:
+    money       hdfs://.../gnoth/std/money/{logDate}       (from std_money task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/money/{logDate}
+
+  Computes per-user Vang/Xu Khoa/Xu Ga gain+spend metrics for D0-D7 cohort window.
+  Money item IDs: -100 (Vang), -300 (Xu Khoa), 110000 (Xu Ga).
+  Migrated from: templates/ltv/feature_set.sql.j2 (money_features CTE group)
+#}
+
+WITH user_money_activity AS (
+    SELECT
+        REGEXP_REPLACE(m.account_id, '^.*_', '') AS user_id,
+        m.item_id,
+        m.record_time,
+        m.flow_type,
+        b.install_date,
+        DATEDIFF(DATE(m.record_time), b.install_date) AS days_since_install,
+        ABS(m.after_quantity - m.before_quantity) AS quantity_change
+    FROM money m
+    INNER JOIN base_users b ON REGEXP_REPLACE(m.account_id, '^.*_', '') = b.user_id
+    WHERE DATEDIFF(DATE(m.record_time), b.install_date) BETWEEN 0 AND 7
+      AND m.item_id IN ('-100', '-300', '110000')
+),
+daily_money_aggregates AS (
+    SELECT
+        user_id,
+        days_since_install,
+        SUM(CASE WHEN item_id = '-100'    AND flow_type = 0 THEN quantity_change ELSE 0 END) AS vang_gain,
+        SUM(CASE WHEN item_id = '-100'    AND flow_type = 1 THEN quantity_change ELSE 0 END) AS vang_spent,
+        SUM(CASE WHEN item_id = '-300'    AND flow_type = 0 THEN quantity_change ELSE 0 END) AS xu_khoa_gain,
+        SUM(CASE WHEN item_id = '-300'    AND flow_type = 1 THEN quantity_change ELSE 0 END) AS xu_khoa_spent,
+        SUM(CASE WHEN item_id = '110000'  AND flow_type = 0 THEN quantity_change ELSE 0 END) AS xu_ga_gain,
+        SUM(CASE WHEN item_id = '110000'  AND flow_type = 1 THEN quantity_change ELSE 0 END) AS xu_ga_spent
+    FROM user_money_activity
+    GROUP BY user_id, days_since_install
+)
+SELECT
+    user_id,
+    MAX(CASE WHEN days_since_install = 0 THEN vang_gain ELSE 0 END) AS vang_gain_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN vang_gain ELSE 0 END) AS vang_gain_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN vang_gain ELSE 0 END) AS vang_gain_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN vang_gain ELSE 0 END) AS vang_gain_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN vang_gain ELSE 0 END) AS vang_gain_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN vang_gain ELSE 0 END) AS vang_gain_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN vang_gain ELSE 0 END) AS vang_gain_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN vang_gain ELSE 0 END) AS vang_gain_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN vang_spent ELSE 0 END) AS vang_spent_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN vang_spent ELSE 0 END) AS vang_spent_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN vang_spent ELSE 0 END) AS vang_spent_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN vang_spent ELSE 0 END) AS vang_spent_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN vang_spent ELSE 0 END) AS vang_spent_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN vang_spent ELSE 0 END) AS vang_spent_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN vang_spent ELSE 0 END) AS vang_spent_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN vang_spent ELSE 0 END) AS vang_spent_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN xu_khoa_gain ELSE 0 END) AS xu_khoa_gain_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN xu_khoa_spent ELSE 0 END) AS xu_khoa_spent_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN xu_ga_gain ELSE 0 END) AS xu_ga_gain_d7,
+    MAX(CASE WHEN days_since_install = 0 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d0,
+    MAX(CASE WHEN days_since_install = 1 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d1,
+    MAX(CASE WHEN days_since_install = 2 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d2,
+    MAX(CASE WHEN days_since_install = 3 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d3,
+    MAX(CASE WHEN days_since_install = 4 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d4,
+    MAX(CASE WHEN days_since_install = 5 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d5,
+    MAX(CASE WHEN days_since_install = 6 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d6,
+    MAX(CASE WHEN days_since_install = 7 THEN xu_ga_spent ELSE 0 END) AS xu_ga_spent_d7,
+    SUM(vang_gain)      AS vang_gain_d0_to_d7,
+    SUM(vang_spent)     AS vang_spent_d0_to_d7,
+    SUM(xu_khoa_gain)   AS xu_khoa_gain_d0_to_d7,
+    SUM(xu_khoa_spent)  AS xu_khoa_spent_d0_to_d7,
+    SUM(xu_ga_gain)     AS xu_ga_gain_d0_to_d7,
+    SUM(xu_ga_spent)    AS xu_ga_spent_d0_to_d7
+FROM daily_money_aggregates
+GROUP BY user_id

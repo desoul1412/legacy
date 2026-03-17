@@ -1,0 +1,34 @@
+{#
+  STD Layer - SensorTower New Games
+  -----------------------------------
+  Source : ETL Parquet hdfs://.../sensortower/etl/new_games/{logDate}
+  Target : STD Parquet hdfs://.../sensortower/std/new_games/month={logDate}-01
+
+  Normalizes compact field names (aid, cc, d, u, r, etc.) to standard schema.
+  iOS: iu + au for downloads, ir + ar for revenue.
+  Android: u for downloads, r for revenue.
+  Revenue divided by 100 (cents → dollars).
+
+  Migrated from: layouts/sensortower/std/new_games.json
+                 + templates/sensortower/std_new_games.sql.j2
+#}
+
+SELECT
+    CAST(aid AS string)                     AS app_id,
+    CAST(COALESCE(cc, c) AS string)         AS country,
+    CAST(d AS date)                         AS date,
+    CAST(
+        CASE
+            WHEN aid RLIKE '^[0-9]+$' THEN COALESCE(iu, 0) + COALESCE(au, 0)
+            ELSE COALESCE(u, 0)
+        END AS long
+    ) AS downloads,
+    CAST(
+        CASE
+            WHEN aid RLIKE '^[0-9]+$' THEN (COALESCE(ir, 0) + COALESCE(ar, 0)) / 100
+            ELSE COALESCE(r, 0) / 100
+        END AS long
+    ) AS revenue
+FROM source_data
+WHERE aid IS NOT NULL
+  AND d IS NOT NULL

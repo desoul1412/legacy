@@ -1,0 +1,43 @@
+{#
+  STD Layer - LTV Retention Features
+  ------------------------------------
+  Input views:
+    active      hdfs://.../gnoth/std/active/{logDate}      (from std_login task)
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}  (from std_ltv task)
+  Output: hdfs://.../gnoth/ltv/std/retention/{logDate}
+
+  Computes per-user D1/D2/D3 return-rate (RR) flags for D0-D7 cohort window.
+  Migrated from: templates/ltv/feature_set.sql.j2 (retention_features CTE group)
+#}
+
+WITH filtered_users AS (
+    SELECT user_id, install_date
+    FROM base_users
+    WHERE install_date IS NOT NULL
+      AND DATEDIFF(CURRENT_DATE(), install_date) >= 7
+),
+user_activity AS (
+    SELECT /*+ BROADCAST(b) */
+        a.user_id,
+        b.install_date,
+        DATEDIFF(a.report_date, b.install_date) AS days_since_install
+    FROM active a
+    INNER JOIN filtered_users b ON a.user_id = b.user_id
+    WHERE a.report_date >= b.install_date
+      AND DATEDIFF(a.report_date, b.install_date) BETWEEN 0 AND 7
+),
+daily_retention AS (
+    SELECT
+        user_id,
+        days_since_install,
+        1 AS is_active
+    FROM user_activity
+    GROUP BY user_id, days_since_install
+)
+SELECT
+    user_id,
+    MAX(CASE WHEN days_since_install = 1 THEN is_active ELSE 0 END) AS RR1,
+    MAX(CASE WHEN days_since_install = 2 THEN is_active ELSE 0 END) AS RR2,
+    MAX(CASE WHEN days_since_install = 3 THEN is_active ELSE 0 END) AS RR3
+FROM daily_retention
+GROUP BY user_id

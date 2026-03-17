@@ -1,0 +1,20 @@
+{#
+  STD Layer - SensorTower Top Games
+  -----------------------------------
+  Source : ETL Parquet hdfs://.../sensortower/etl/top_games/{logDate}
+  Target : STD Parquet hdfs://.../sensortower/std/top_games/month={logDate}-01
+
+  Standardizes schema: normalizes units, converts revenue from cents to dollars.
+
+  Migrated from: layouts/sensortower/std/top_games.json
+                 + templates/sensortower/std_top_games.sql.j2
+#}
+
+SELECT
+    CAST(app_id                             AS string) AS app_id,
+    CAST(country                            AS string) AS country,
+    CAST(date                               AS date)   AS month,
+    CAST(COALESCE(units_absolute, 0)        AS long)   AS downloads,
+    CAST(COALESCE(revenue_absolute, 0) / 100 AS long)  AS revenue
+FROM source_data
+WHERE app_id IS NOT NULL

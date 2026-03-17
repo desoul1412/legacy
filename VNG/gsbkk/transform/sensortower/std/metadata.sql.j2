@@ -1,0 +1,27 @@
+{#
+  STD Layer - SensorTower App Metadata
+  --------------------------------------
+  Source : ETL Parquet hdfs://.../sensortower/etl/metadata/{logDate}-01
+  Target : STD Parquet hdfs://.../sensortower/std/metadata/{logDate}-01
+
+  Standardizes app metadata with explicit type casting.
+  Adds log_date and created_at audit columns.
+
+  Migrated from: layouts/sensortower/std/metadata.json
+                 + templates/sensortower/std_metadata.sql.j2
+#}
+
+SELECT
+    CAST(app_id           AS string)    AS app_id,
+    CAST(app_name         AS string)    AS app_name,
+    CAST(publisher_name   AS string)    AS publisher_name,
+    CAST(publisher_id     AS string)    AS publisher_id,
+    CAST(category         AS string)    AS category,
+    CAST(release_date     AS date)      AS release_date,
+    CAST(description      AS string)    AS description,
+    CAST(version          AS string)    AS version,
+    CAST(size_bytes       AS long)      AS size_bytes,
+    CAST('{{ logDate }}'  AS string)    AS log_date,
+    current_timestamp()                 AS created_at
+FROM source_data
+WHERE app_id IS NOT NULL

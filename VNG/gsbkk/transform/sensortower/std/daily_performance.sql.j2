@@ -1,0 +1,24 @@
+{#
+  STD Layer - SensorTower Daily Performance
+  ------------------------------------------
+  Source : ETL Parquet hdfs://.../sensortower/etl/performance/month={logDate}-01
+  Target : STD Parquet hdfs://.../sensortower/std/performance/month={logDate}-01
+
+  Normalizes compact field names to standard schema.
+  iOS: au + iu for downloads, ar + ir for revenue.
+  Android: u for downloads, r for revenue.
+  Revenue divided by 100 (cents → dollars).
+
+  Migrated from: layouts/sensortower/std/daily_performance.json
+                 + templates/sensortower/std_daily_performance.sql.j2
+#}
+
+SELECT
+    CAST(d                              AS timestamp) AS date,
+    CAST(aid                            AS string)    AS app_id,
+    CAST(COALESCE(c, cc)                AS string)    AS country,
+    CAST(COALESCE(u, au + iu)           AS double)    AS downloads,
+    CAST(COALESCE(r, ir + ar) / 100     AS double)    AS revenue
+FROM source_data
+WHERE aid IS NOT NULL
+  AND d IS NOT NULL

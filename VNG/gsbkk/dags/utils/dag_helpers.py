@@ -71,39 +71,183 @@ def create_etl_operator(
     )
 
 
-def create_api_operator(
+def create_raw_api_operator(
     dag,
-    task_id: str,
-    layout: str,
-    month: str = "{{ execution_date.strftime('%Y-%m') }}",
-    script_base: str = '/opt/airflow/dags/repo',
+    task_id,
+    url_template,
+    output_path,
+    log_date="{{ ds }}",
+    params="",
+    cred_file="",
+    cred_key="",
+    auth_param="auth_token",
+    auth_header="",
+    auth_value_key="api_key",
+    response_key="",
+    paginate=False,
+    page_param="offset",
+    page_size=10000,
+    method="GET",
+    timeout=60,
+    max_retries=3,
+    script_base='/opt/airflow/dags/repo',
     **kwargs
-) -> BashOperator:
+):
     """
-    Create a BashOperator for API extraction tasks using run_api_extraction.sh
-    
+    Create a BashOperator that calls run_api.sh / api_to_raw.py.
+
+    Fetches data from an external HTTP API and writes raw JSON lines to HDFS.
+    No Spark required — runs with the local Python environment from the archive.
+
     Args:
         dag: Airflow DAG object
         task_id: Task identifier
-        layout: Path to layout JSON file
-        month: Month template (default: {{ execution_date.strftime('%Y-%m') }})
+        url_template: API URL; may contain {{ logDate }} Jinja2 placeholders
+        output_path: HDFS destination; may contain {logDate} substitution tokens
+        log_date: Airflow date template (default: {{ ds }})
+        params: JSON-encoded dict of extra query params, e.g. '{"limit":"500"}'
+        cred_file: Credential filename in HDFS configs (e.g. cred_tsn.json)
+        cred_key: Key within the credential file (e.g. sensortower)
+        auth_param: Query param name for the token (default: auth_token)
+        auth_header: Header name for the token (alternative to auth_param)
+        auth_value_key: Key in creds dict holding the token (default: api_key)
+        response_key: Dot-path into response JSON to reach the data list
+        paginate: Enable offset-based pagination (default: False)
+        page_param: Offset param name (default: offset)
+        page_size: Records per page (default: 10000)
+        method: HTTP method GET or POST (default: GET)
+        timeout: Request timeout in seconds (default: 60)
+        max_retries: Max retries on rate-limit/server errors (default: 3)
         script_base: Base path to scripts
-        **kwargs: Additional BashOperator parameters
-    
+
     Returns:
         BashOperator instance
+
+    Example:
+        >>> extract_new_games = create_raw_api_operator(
+        ...     dag=dag,
+        ...     task_id='raw_new_games_ios',
+        ...     url_template='https://api.sensortower.com/v1/ios/apps/app_ids?category=6014&start_date={{ logDate }}&limit=10000',
+        ...     cred_file='cred_tsn.json',
+        ...     cred_key='sensortower',
+        ...     response_key='ids',
+        ...     paginate=True,
+        ...     output_path='hdfs://c0s/user/gsbkk-workspace-yc9t6/raw/sensortower/new_games_ios/{logDate}',
+        ... )
     """
+    args = [
+        'url_template={0}'.format(url_template),
+        'output_path={0}'.format(output_path),
+        'logDate={0}'.format(log_date),
+    ]
+
+    if params:
+        args.append('params="{0}"'.format(params))
+    if cred_file:
+        args.append('cred_file={0}'.format(cred_file))
+    if cred_key:
+        args.append('cred_key={0}'.format(cred_key))
+    if auth_param and auth_param != 'auth_token':
+        args.append('auth_param={0}'.format(auth_param))
+    if auth_header:
+        args.append('auth_header={0}'.format(auth_header))
+    if auth_value_key and auth_value_key != 'api_key':
+        args.append('auth_value_key={0}'.format(auth_value_key))
+    if response_key:
+        args.append('response_key={0}'.format(response_key))
+    if paginate:
+        args.append('paginate=true')
+    if page_param and page_param != 'offset':
+        args.append('page_param={0}'.format(page_param))
+    if page_size != 10000:
+        args.append('page_size={0}'.format(page_size))
+    if method and method != 'GET':
+        args.append('method={0}'.format(method))
+    if timeout != 60:
+        args.append('timeout={0}'.format(timeout))
+    if max_retries != 3:
+        args.append('max_retries={0}'.format(max_retries))
+
+    args_str = ' \\\n                '.join(args)
+
     return BashOperator(
         task_id=task_id,
-        bash_command=f"""
-            cd {script_base}
-            ./run_api_extraction.sh \
-                --layout {layout} \
-                --month {month}
-        """,
+        bash_command="""
+            cd {base}
+            ./run_api.sh \\
+                {args}
+        """.format(base=script_base, args=args_str),
         dag=dag,
         **kwargs
     )
+
+
+def create_gsheet_raw_operator(
+    dag,
+    task_id,
+    sheet_id,
+    worksheet,
+    output_path,
+    log_date="{{ ds }}",
+    cred_file="tsn-data-0e06f020fc9b.json",
+    skip_empty=True,
+    script_base='/opt/airflow/dags/repo',
+    **kwargs
+):
+    """
+    Create a BashOperator that calls run_gsheet.sh / gsheet_to_raw.py.
+
+    Reads a Google Sheets worksheet and writes raw JSON lines to HDFS.
+    No Spark required — runs with the local Python environment from the archive.
+
+    Args:
+        dag: Airflow DAG object
+        task_id: Task identifier
+        sheet_id: Google Sheets document ID (from the URL)
+        worksheet: Worksheet (tab) name, e.g. "Daily Overall"
+        output_path: HDFS destination; may contain {logDate} substitution tokens
+        log_date: Airflow date template (default: {{ ds }})
+        cred_file: Service-account JSON filename in HDFS configs
+        skip_empty: Skip rows where all cells are empty (default: True)
+        script_base: Base path to scripts
+
+    Returns:
+        BashOperator instance
+
+    Example:
+        >>> raw_daily = create_gsheet_raw_operator(
+        ...     dag=dag,
+        ...     task_id='raw_daily_rfc',
+        ...     sheet_id='1F0DpS1Kw43G_mbbluVCLx2HcSCoASk2IzDE3n2rDR7w',
+        ...     worksheet='Daily Overall',
+        ...     output_path='hdfs://c0s/user/gsbkk-workspace-yc9t6/raw/rfc/daily/{logDate}',
+        ... )
+    """
+    args = [
+        'sheet_id={0}'.format(sheet_id),
+        'worksheet={0}'.format(worksheet),
+        'output_path={0}'.format(output_path),
+        'logDate={0}'.format(log_date),
+    ]
+
+    if cred_file and cred_file != 'tsn-data-0e06f020fc9b.json':
+        args.append('cred_file={0}'.format(cred_file))
+    if not skip_empty:
+        args.append('skip_empty=false')
+
+    args_str = ' \\\n                '.join(args)
+
+    return BashOperator(
+        task_id=task_id,
+        bash_command="""
+            cd {base}
+            ./run_gsheet.sh \\
+                {args}
+        """.format(base=script_base, args=args_str),
+        dag=dag,
+        **kwargs
+    )
+
 
 # create_gsheet_operator() removed - referenced deleted run_gsheet_process.sh
 # Google Sheets functionality is handled by etl_engine.py with type='gsheet' in layouts
@@ -142,6 +286,130 @@ def create_pipeline_operator(
             cd {script_base}
             ./run_pipeline.sh {script_name} {params_str}
         """,
+        dag=dag,
+        **kwargs
+    )
+
+
+def create_sql_operator(
+    dag,
+    task_id,
+    output_type,
+    log_date="{{ ds }}",
+    sql_file="",
+    extract_sql_file="",
+    extract_connection="",
+    extract_view="source_data",
+    input_path="",
+    input_format="parquet",
+    input_view="source_data",
+    input_paths="",
+    secondary_sql_file="",
+    secondary_connection="",
+    secondary_view="secondary",
+    output_table="",
+    output_path="",
+    output_connection="TSN_POSTGRES",
+    output_mode="overwrite",
+    delete_condition="",
+    num_partitions=0,
+    game_id="",
+    extra_vars="",
+    script_base='/opt/airflow/dags/repo',
+    **kwargs
+):
+    """
+    Create a BashOperator for SQL-first transformation tasks using run_sql.sh.
+
+    This is the new-style operator that replaces create_etl_operator for
+    SQL-centric pipelines (no JSON layout file required).
+
+    Args:
+        dag: Airflow DAG object
+        task_id: Task identifier
+        sql_file: Path to .sql.j2 file (relative to repo root)
+        output_type: 'jdbc' or 'file'
+        log_date: Airflow date template (default: {{ ds }})
+        output_table: Target Postgres table (e.g. 'public.rfc_daily')
+        output_path: Target HDFS path (for output_type='file')
+        output_connection: 'TSN_POSTGRES' or 'GDS_POSTGRES'
+        output_mode: 'overwrite' or 'append'
+        delete_condition: SQL WHERE clause for idempotent delete+insert
+        input_path: Optional HDFS path to register as a Spark temp view
+        input_view: Temp view name for input_path (default: 'source')
+        game_id: Game identifier (used for JDBC database selection)
+        extra_vars: Additional key=value pairs as a space-separated string
+        script_base: Base path to scripts
+        **kwargs: Additional BashOperator parameters
+
+    Returns:
+        BashOperator instance
+
+    Example:
+        >>> cons_rfc = create_sql_operator(
+        ...     dag=dag,
+        ...     task_id='cons_rfc_daily',
+        ...     sql_file='transform/rolling_forecast/cons/rfc_daily.sql.j2',
+        ...     output_type='jdbc',
+        ...     output_table='public.rfc_daily',
+        ...     output_mode='append',
+        ...     delete_condition='EXTRACT(YEAR FROM date) = 2026',
+        ...     game_id='rfc',
+        ... )
+    """
+    args = [
+        'output_type={0}'.format(output_type),
+        'logDate={0}'.format(log_date),
+    ]
+
+    if sql_file:
+        args.append('sql_file={0}'.format(sql_file))
+    if extract_sql_file:
+        args.append('extract_sql_file={0}'.format(extract_sql_file))
+    if extract_connection:
+        args.append('extract_connection={0}'.format(extract_connection))
+    if extract_view and extract_view != 'source_data':
+        args.append('extract_view={0}'.format(extract_view))
+    if input_path:
+        args.append('input_path={0}'.format(input_path))
+    if input_format and input_format != 'parquet':
+        args.append('input_format={0}'.format(input_format))
+    if input_view and input_view != 'source_data':
+        args.append('input_view={0}'.format(input_view))
+    if input_paths:
+        args.append('input_paths="{0}"'.format(input_paths))
+    if secondary_sql_file:
+        args.append('secondary_sql_file={0}'.format(secondary_sql_file))
+    if secondary_connection:
+        args.append('secondary_connection={0}'.format(secondary_connection))
+    if secondary_view and secondary_view != 'secondary':
+        args.append('secondary_view={0}'.format(secondary_view))
+    if output_table:
+        args.append('output_table={0}'.format(output_table))
+    if output_path:
+        args.append('output_path={0}'.format(output_path))
+    if output_connection and output_connection != 'TSN_POSTGRES':
+        args.append('output_connection={0}'.format(output_connection))
+    if output_mode and output_mode != 'overwrite':
+        args.append('output_mode={0}'.format(output_mode))
+    if delete_condition:
+        args.append('delete_condition="{0}"'.format(delete_condition))
+    if num_partitions > 0:
+        args.append('num_partitions={0}'.format(num_partitions))
+    if game_id:
+        args.append('gameId={0}'.format(game_id))
+    if extra_vars:
+        args.append(extra_vars)
+
+    args_str = ' \\\n                '.join(args)
+
+    return BashOperator(
+        task_id=task_id,
+        bash_command="""
+            cd {base}
+            ./run_sql.sh \\
+                {args}
+        """.format(base=script_base, args=args_str),
         dag=dag,
         **kwargs
     )
@@ -216,6 +484,70 @@ def create_pipeline_tasks(
                 task_id=task_name,
                 layout=config['layout'],
                 month=config.get('month', "{{ execution_date.strftime('%Y-%m') }}"),
+                script_base=script_base,
+                **task_kwargs
+            )
+        elif task_type == 'gsheet_raw':
+            task = create_gsheet_raw_operator(
+                dag=dag,
+                task_id=task_name,
+                sheet_id=config['sheet_id'],
+                worksheet=config['worksheet'],
+                output_path=config['output_path'],
+                log_date=config.get('log_date', log_date),
+                cred_file=config.get('cred_file', 'tsn-data-0e06f020fc9b.json'),
+                skip_empty=config.get('skip_empty', True),
+                script_base=script_base,
+                **task_kwargs
+            )
+        elif task_type == 'raw_api':
+            task = create_raw_api_operator(
+                dag=dag,
+                task_id=task_name,
+                url_template=config['url_template'],
+                output_path=config['output_path'],
+                log_date=config.get('log_date', log_date),
+                params=config.get('params', ''),
+                cred_file=config.get('cred_file', ''),
+                cred_key=config.get('cred_key', ''),
+                auth_param=config.get('auth_param', 'auth_token'),
+                auth_header=config.get('auth_header', ''),
+                auth_value_key=config.get('auth_value_key', 'api_key'),
+                response_key=config.get('response_key', ''),
+                paginate=config.get('paginate', False),
+                page_param=config.get('page_param', 'offset'),
+                page_size=config.get('page_size', 10000),
+                method=config.get('method', 'GET'),
+                timeout=config.get('timeout', 60),
+                max_retries=config.get('max_retries', 3),
+                script_base=script_base,
+                **task_kwargs
+            )
+        elif task_type == 'sql':
+            task = create_sql_operator(
+                dag=dag,
+                task_id=task_name,
+                output_type=config.get('output_type', 'file'),
+                log_date=config.get('log_date', log_date),
+                sql_file=config.get('sql_file', ''),
+                extract_sql_file=config.get('extract_sql_file', ''),
+                extract_connection=config.get('extract_connection', ''),
+                extract_view=config.get('extract_view', 'source_data'),
+                input_path=config.get('input_path', ''),
+                input_format=config.get('input_format', 'parquet'),
+                input_view=config.get('input_view', 'source_data'),
+                input_paths=config.get('input_paths', ''),
+                secondary_sql_file=config.get('secondary_sql_file', ''),
+                secondary_connection=config.get('secondary_connection', ''),
+                secondary_view=config.get('secondary_view', 'secondary'),
+                output_table=config.get('output_table', ''),
+                output_path=config.get('output_path', ''),
+                output_connection=config.get('output_connection', 'TSN_POSTGRES'),
+                output_mode=config.get('output_mode', 'overwrite'),
+                delete_condition=config.get('delete_condition', ''),
+                num_partitions=config.get('num_partitions', 0),
+                game_id=config.get('game_id', game_id or ''),
+                extra_vars=config.get('extra_vars', ''),
                 script_base=script_base,
                 **task_kwargs
             )

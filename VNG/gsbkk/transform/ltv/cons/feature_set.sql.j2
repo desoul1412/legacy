@@ -1,0 +1,145 @@
+{#
+  CONS Layer - LTV Feature Set (final join)
+  ------------------------------------------
+  Input views:
+    base_users  hdfs://.../gnoth/std/base_users/{logDate}
+    sessions    hdfs://.../gnoth/ltv/std/sessions/{logDate}
+    retention   hdfs://.../gnoth/ltv/std/retention/{logDate}
+    purchase    hdfs://.../gnoth/ltv/std/purchase/{logDate}
+    items       hdfs://.../gnoth/ltv/std/items/{logDate}
+    money       hdfs://.../gnoth/ltv/std/money/{logDate}
+    targets     hdfs://.../gnoth/ltv/std/targets/{logDate}
+  Output: Postgres public.ltv_feature_set (or HDFS for ML training)
+
+  Joins all 6 LTV STD feature groups onto base_users.
+  Only includes users with mature cohorts (installed >= 180 days ago).
+  Migrated from: templates/ltv/feature_set.sql.j2 (final SELECT)
+#}
+
+SELECT
+    bu.user_id,
+    bu.install_date,
+    bu.media_source,
+    bu.campaign_id,
+    bu.country,
+    -- Session Metrics
+    COALESCE(sf.sessions_cnt_d0, 0)        AS sessions_cnt_d0,
+    COALESCE(sf.sessions_cnt_d1, 0)        AS sessions_cnt_d1,
+    COALESCE(sf.sessions_cnt_d2, 0)        AS sessions_cnt_d2,
+    COALESCE(sf.sessions_cnt_d3, 0)        AS sessions_cnt_d3,
+    COALESCE(sf.sessions_cnt_d4, 0)        AS sessions_cnt_d4,
+    COALESCE(sf.sessions_cnt_d5, 0)        AS sessions_cnt_d5,
+    COALESCE(sf.sessions_cnt_d6, 0)        AS sessions_cnt_d6,
+    COALESCE(sf.sessions_cnt_d7, 0)        AS sessions_cnt_d7,
+    COALESCE(sf.sessions_cnt_d0_to_d3, 0)  AS sessions_cnt_d0_to_d3,
+    COALESCE(sf.sessions_cnt_d0_to_d7, 0)  AS sessions_cnt_d0_to_d7,
+    -- Retention Signals
+    COALESCE(rf.RR1, 0) AS RR1,
+    COALESCE(rf.RR2, 0) AS RR2,
+    COALESCE(rf.RR3, 0) AS RR3,
+    -- Item Usage
+    COALESCE(itf.items_gain_d0, 0)         AS items_gain_d0,
+    COALESCE(itf.items_gain_d1, 0)         AS items_gain_d1,
+    COALESCE(itf.items_gain_d2, 0)         AS items_gain_d2,
+    COALESCE(itf.items_gain_d3, 0)         AS items_gain_d3,
+    COALESCE(itf.items_gain_d4, 0)         AS items_gain_d4,
+    COALESCE(itf.items_gain_d5, 0)         AS items_gain_d5,
+    COALESCE(itf.items_gain_d6, 0)         AS items_gain_d6,
+    COALESCE(itf.items_gain_d7, 0)         AS items_gain_d7,
+    COALESCE(itf.items_gain_d0_to_d7, 0)   AS items_gain_d0_to_d7,
+    COALESCE(itf.items_spent_d0, 0)        AS items_spent_d0,
+    COALESCE(itf.items_spent_d1, 0)        AS items_spent_d1,
+    COALESCE(itf.items_spent_d2, 0)        AS items_spent_d2,
+    COALESCE(itf.items_spent_d3, 0)        AS items_spent_d3,
+    COALESCE(itf.items_spent_d4, 0)        AS items_spent_d4,
+    COALESCE(itf.items_spent_d5, 0)        AS items_spent_d5,
+    COALESCE(itf.items_spent_d6, 0)        AS items_spent_d6,
+    COALESCE(itf.items_spent_d7, 0)        AS items_spent_d7,
+    COALESCE(itf.items_spent_d0_to_d7, 0)  AS items_spent_d0_to_d7,
+    -- Money Usage: Vang
+    COALESCE(mf.vang_gain_d0, 0)           AS vang_gain_d0,
+    COALESCE(mf.vang_gain_d1, 0)           AS vang_gain_d1,
+    COALESCE(mf.vang_gain_d2, 0)           AS vang_gain_d2,
+    COALESCE(mf.vang_gain_d3, 0)           AS vang_gain_d3,
+    COALESCE(mf.vang_gain_d4, 0)           AS vang_gain_d4,
+    COALESCE(mf.vang_gain_d5, 0)           AS vang_gain_d5,
+    COALESCE(mf.vang_gain_d6, 0)           AS vang_gain_d6,
+    COALESCE(mf.vang_gain_d7, 0)           AS vang_gain_d7,
+    COALESCE(mf.vang_gain_d0_to_d7, 0)     AS vang_gain_d0_to_d7,
+    COALESCE(mf.vang_spent_d0, 0)          AS vang_spent_d0,
+    COALESCE(mf.vang_spent_d1, 0)          AS vang_spent_d1,
+    COALESCE(mf.vang_spent_d2, 0)          AS vang_spent_d2,
+    COALESCE(mf.vang_spent_d3, 0)          AS vang_spent_d3,
+    COALESCE(mf.vang_spent_d4, 0)          AS vang_spent_d4,
+    COALESCE(mf.vang_spent_d5, 0)          AS vang_spent_d5,
+    COALESCE(mf.vang_spent_d6, 0)          AS vang_spent_d6,
+    COALESCE(mf.vang_spent_d7, 0)          AS vang_spent_d7,
+    COALESCE(mf.vang_spent_d0_to_d7, 0)    AS vang_spent_d0_to_d7,
+    -- Money Usage: Xu Khoa
+    COALESCE(mf.xu_khoa_gain_d0, 0)        AS xu_khoa_gain_d0,
+    COALESCE(mf.xu_khoa_gain_d1, 0)        AS xu_khoa_gain_d1,
+    COALESCE(mf.xu_khoa_gain_d2, 0)        AS xu_khoa_gain_d2,
+    COALESCE(mf.xu_khoa_gain_d3, 0)        AS xu_khoa_gain_d3,
+    COALESCE(mf.xu_khoa_gain_d4, 0)        AS xu_khoa_gain_d4,
+    COALESCE(mf.xu_khoa_gain_d5, 0)        AS xu_khoa_gain_d5,
+    COALESCE(mf.xu_khoa_gain_d6, 0)        AS xu_khoa_gain_d6,
+    COALESCE(mf.xu_khoa_gain_d7, 0)        AS xu_khoa_gain_d7,
+    COALESCE(mf.xu_khoa_gain_d0_to_d7, 0)  AS xu_khoa_gain_d0_to_d7,
+    COALESCE(mf.xu_khoa_spent_d0, 0)       AS xu_khoa_spent_d0,
+    COALESCE(mf.xu_khoa_spent_d1, 0)       AS xu_khoa_spent_d1,
+    COALESCE(mf.xu_khoa_spent_d2, 0)       AS xu_khoa_spent_d2,
+    COALESCE(mf.xu_khoa_spent_d3, 0)       AS xu_khoa_spent_d3,
+    COALESCE(mf.xu_khoa_spent_d4, 0)       AS xu_khoa_spent_d4,
+    COALESCE(mf.xu_khoa_spent_d5, 0)       AS xu_khoa_spent_d5,
+    COALESCE(mf.xu_khoa_spent_d6, 0)       AS xu_khoa_spent_d6,
+    COALESCE(mf.xu_khoa_spent_d7, 0)       AS xu_khoa_spent_d7,
+    COALESCE(mf.xu_khoa_spent_d0_to_d7, 0) AS xu_khoa_spent_d0_to_d7,
+    -- Money Usage: Xu Ga
+    COALESCE(mf.xu_ga_gain_d0, 0)          AS xu_ga_gain_d0,
+    COALESCE(mf.xu_ga_gain_d1, 0)          AS xu_ga_gain_d1,
+    COALESCE(mf.xu_ga_gain_d2, 0)          AS xu_ga_gain_d2,
+    COALESCE(mf.xu_ga_gain_d3, 0)          AS xu_ga_gain_d3,
+    COALESCE(mf.xu_ga_gain_d4, 0)          AS xu_ga_gain_d4,
+    COALESCE(mf.xu_ga_gain_d5, 0)          AS xu_ga_gain_d5,
+    COALESCE(mf.xu_ga_gain_d6, 0)          AS xu_ga_gain_d6,
+    COALESCE(mf.xu_ga_gain_d7, 0)          AS xu_ga_gain_d7,
+    COALESCE(mf.xu_ga_gain_d0_to_d7, 0)    AS xu_ga_gain_d0_to_d7,
+    COALESCE(mf.xu_ga_spent_d0, 0)         AS xu_ga_spent_d0,
+    COALESCE(mf.xu_ga_spent_d1, 0)         AS xu_ga_spent_d1,
+    COALESCE(mf.xu_ga_spent_d2, 0)         AS xu_ga_spent_d2,
+    COALESCE(mf.xu_ga_spent_d3, 0)         AS xu_ga_spent_d3,
+    COALESCE(mf.xu_ga_spent_d4, 0)         AS xu_ga_spent_d4,
+    COALESCE(mf.xu_ga_spent_d5, 0)         AS xu_ga_spent_d5,
+    COALESCE(mf.xu_ga_spent_d6, 0)         AS xu_ga_spent_d6,
+    COALESCE(mf.xu_ga_spent_d7, 0)         AS xu_ga_spent_d7,
+    COALESCE(mf.xu_ga_spent_d0_to_d7, 0)   AS xu_ga_spent_d0_to_d7,
+    -- Purchase Behavior
+    pf.days_to_first_purchase,
+    pf.first_purchase_amount,
+    pf.first_purchase_day,
+    COALESCE(pf.purchase_cnt_d0_to_d7, 0)  AS purchase_cnt_d0_to_d7,
+    COALESCE(pf.total_revenue_d0, 0)        AS total_revenue_d0,
+    COALESCE(pf.total_revenue_d1, 0)        AS total_revenue_d1,
+    COALESCE(pf.total_revenue_d2, 0)        AS total_revenue_d2,
+    COALESCE(pf.total_revenue_d3, 0)        AS total_revenue_d3,
+    COALESCE(pf.total_revenue_d4, 0)        AS total_revenue_d4,
+    COALESCE(pf.total_revenue_d5, 0)        AS total_revenue_d5,
+    COALESCE(pf.total_revenue_d6, 0)        AS total_revenue_d6,
+    COALESCE(pf.total_revenue_d7, 0)        AS total_revenue_d7,
+    COALESCE(pf.total_revenue_d0_to_d7, 0)  AS total_revenue_d0_to_d7,
+    -- Target Variables (LTV)
+    COALESCE(ltv.ltv_d7,   0) AS ltv_d7,
+    COALESCE(ltv.ltv_d14,  0) AS ltv_d14,
+    COALESCE(ltv.ltv_d30,  0) AS ltv_d30,
+    COALESCE(ltv.ltv_d60,  0) AS ltv_d60,
+    COALESCE(ltv.ltv_d90,  0) AS ltv_d90,
+    COALESCE(ltv.ltv_d120, 0) AS ltv_d120,
+    COALESCE(ltv.ltv_d180, 0) AS ltv_d180
+FROM base_users bu
+LEFT JOIN sessions   sf  ON bu.user_id = sf.user_id
+LEFT JOIN retention  rf  ON bu.user_id = rf.user_id
+LEFT JOIN items      itf ON bu.user_id = itf.user_id
+LEFT JOIN money      mf  ON bu.user_id = mf.user_id
+LEFT JOIN purchase   pf  ON bu.user_id = pf.user_id
+LEFT JOIN targets    ltv ON bu.user_id = ltv.user_id
+WHERE DATEDIFF(CURRENT_DATE(), bu.install_date) >= 180
